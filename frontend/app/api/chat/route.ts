@@ -38,9 +38,9 @@ export async function POST(req: Request) {
         if (scratchpadData.todos?.length > 0) {
           parts.push(
             'Todos:\n' +
-              scratchpadData.todos
-                .map((t: any) => `- [${t.done ? 'x' : ' '}] ${t.text}`)
-                .join('\n')
+            scratchpadData.todos
+              .map((t: any) => `- [${t.done ? 'x' : ' '}] ${t.text}`)
+              .join('\n')
           );
         }
         if (scratchpadData.notes) {
