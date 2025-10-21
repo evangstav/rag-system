@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     // Convert UIMessage format to backend format
     const backendMessages = messages.map((msg) => ({
       role: msg.role,
-      content: msg.parts?.map((part) => part.type === 'text' ? part.text : '').join('') || '',
+      content: msg.parts?.filter((part) => part.type === 'text').map((part) => part.text).join('') || '',
     }));
 
     // Call backend streaming endpoint
