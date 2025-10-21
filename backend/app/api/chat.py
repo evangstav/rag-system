@@ -256,10 +256,10 @@ async def stream_chat(
             result = await db.execute(
                 select(DBMessage)
                 .where(DBMessage.conversation_id == conversation_id)
-                .order_by(DBMessage.created_at.asc())
+                .order_by(DBMessage.created_at.desc())
                 .limit(20)  # Keep last 20 messages for context
             )
-            history_messages = result.scalars().all()
+            history_messages = result.scalars().all()[::-1]  # Reverse to chronological order
 
             # Extract user's last message
             user_message = request.messages[-1] if request.messages else None
