@@ -150,7 +150,7 @@ class Message(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Optional metadata (model used, tokens, context included, etc.)
-    metadata: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    extra_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -208,7 +208,7 @@ class ScratchpadEntry(Base):
     )
 
     # Optional metadata (tags, priority, etc.)
-    metadata: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    extra_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -323,7 +323,7 @@ class Document(Base):
     num_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # Metadata (extracted metadata, custom tags, etc.)
-    metadata: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    extra_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
