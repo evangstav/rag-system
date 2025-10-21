@@ -87,7 +87,7 @@ export async function POST(req: Request) {
               } else if (parsed.type === 'error') {
                 // Error from backend
                 console.error('Backend error:', parsed.error);
-                controller.enqueue(encoder.encode(`3:${JSON.stringify({error: parsed.error})}\n`));
+                controller.enqueue(encoder.encode(`3:${JSON.stringify({ error: parsed.error })}\n`));
               }
             } catch (e) {
               // Skip malformed JSON
