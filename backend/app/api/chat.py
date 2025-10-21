@@ -195,7 +195,7 @@ async def build_system_message(
 
 You have been provided with additional context to help answer the user's question. Use this context when relevant, but also apply your general knowledge.
 
-{chr(10).join(context_parts)}
+{'\n'.join(context_parts)}
 
 Remember to cite sources when using information from the retrieved knowledge."""
     else:
