@@ -107,7 +107,7 @@ def upgrade() -> None:
         sa.Column('source_url', sa.String(2000), nullable=True),
         sa.Column('status', sa.String(20), nullable=False, server_default='pending'),
         sa.Column('error_message', sa.Text(), nullable=True),
-        sa.Column('num_chunks', sa.Integer(), nullable=False, server_default='0'),
+        sa.Column('num_chunks', sa.Integer(), nullable=False, server_default=sa.text('0')),
         sa.Column('num_tokens', sa.Integer(), nullable=True),
         sa.Column('extra_metadata', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
