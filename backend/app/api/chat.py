@@ -264,7 +264,7 @@ async def stream_chat(
             # Extract user's last message
             user_message = request.messages[-1] if request.messages else None
             if not user_message or user_message.role != "user":
-                yield f"data: {json.dumps({'error': 'Last message must be from user'})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'error': 'Last message must be from user'})}\n\n"
                 return
 
             user_query = user_message.content
