@@ -1,8 +1,16 @@
-import { streamText, convertToModelMessages, UIMessage } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { UIMessage } from 'ai';
 
 export const maxDuration = 30;
 
+/**
+ * Chat API route handler.
+ *
+ * This proxies requests to the FastAPI backend which handles:
+ * - RAG context injection
+ * - Scratchpad context injection
+ * - Conversation persistence
+ * - Message history
+ */
 export async function POST(req: Request) {
   const {
     messages,
@@ -16,97 +24,87 @@ export async function POST(req: Request) {
     knowledgePoolIds?: string[];
   } = await req.json();
 
-  // Build context for system message
-  const contextParts: string[] = [];
-
   try {
-    // 1. Fetch scratchpad context if enabled
-    if (useScratchpad) {
-      const scratchpadRes = await fetch(
-        'http://localhost:8000/api/scratchpad',
-        {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
+    // Convert UIMessage format to backend format
+    const backendMessages = messages.map((msg) => ({
+      role: msg.role,
+      content: msg.parts?.filter((part) => part.type === 'text').map((part) => part.text).join('') || '',
+    }));
 
-      if (scratchpadRes.ok) {
-        const scratchpadData = await scratchpadRes.json();
-
-        // Format scratchpad data
-        const parts = [];
-        if (scratchpadData.todos?.length > 0) {
-          parts.push(
-            'Todos:\n' +
-            scratchpadData.todos
-              .map((t: any) => `- [${t.done ? 'x' : ' '}] ${t.text}`)
-              .join('\n')
-          );
-        }
-        if (scratchpadData.notes) {
-          parts.push(`Notes:\n${scratchpadData.notes}`);
-        }
-        if (scratchpadData.journal) {
-          parts.push(`Journal:\n${scratchpadData.journal}`);
-        }
-
-        if (parts.length > 0) {
-          contextParts.push(
-            `User's current scratchpad:\n${parts.join('\n\n')}`
-          );
-        }
-      }
-    }
-
-    // 2. Fetch RAG context if enabled
-    if (useRag && knowledgePoolIds.length > 0) {
-      // Get the last user message text
-      const lastMessage = messages[messages.length - 1];
-      const userMessageText = lastMessage?.parts
-        ?.filter((part) => part.type === 'text')
-        .map((part) => part.text)
-        .join(' ') || '';
-
-      const ragRes = await fetch('http://localhost:8000/api/rag/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: userMessageText,
-          pool_ids: knowledgePoolIds,
-          top_k: 5,
-        }),
-      });
-
-      if (ragRes.ok) {
-        const ragResults = await ragRes.json();
-
-        if (ragResults.documents?.length > 0) {
-          const sources = ragResults.documents
-            .map(
-              (doc: any, i: number) =>
-                `Source ${i + 1} (${doc.metadata?.filename || 'Unknown'}):\n${doc.content}`
-            )
-            .join('\n\n');
-
-          contextParts.push(`Retrieved information:\n${sources}`);
-        }
-      }
-    }
-
-    // 3. Build system message with context
-    let systemMessage = 'You are a helpful AI assistant.';
-    if (contextParts.length > 0) {
-      systemMessage += '\n\n' + contextParts.join('\n\n');
-    }
-
-    // 4. Stream response using AI SDK
-    const result = streamText({
-      model: openai('gpt-4-turbo-preview'),
-      system: systemMessage,
-      messages: convertToModelMessages(messages),
+    // Call backend streaming endpoint
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const response = await fetch(`${backendUrl}/api/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: backendMessages,
+        use_rag: useRag,
+        use_scratchpad: useScratchpad,
+        knowledge_pool_ids: knowledgePoolIds,
+        stream: true,
+      }),
     });
 
-    return result.toUIMessageStreamResponse();
+    if (!response.ok) {
+      throw new Error(`Backend returned ${response.status}: ${response.statusText}`);
+    }
+
+    // Transform backend SSE stream to AI SDK format
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+
+    const transformStream = new TransformStream({
+      async transform(chunk, controller) {
+        const text = decoder.decode(chunk);
+        const lines = text.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+
+            try {
+              const parsed = JSON.parse(data);
+
+              // Handle different event types from backend
+              if (parsed.type === 'content') {
+                // Transform to AI SDK format
+                const aiSDKChunk = {
+                  type: 'text-delta',
+                  textDelta: parsed.content,
+                };
+                controller.enqueue(encoder.encode(`0:${JSON.stringify(aiSDKChunk)}\n`));
+              } else if (parsed.type === 'metadata') {
+                // Store metadata (could be used to show sources in UI)
+                console.log('Context metadata:', parsed.metadata);
+              } else if (parsed.type === 'conversation_id') {
+                // Store conversation ID (could be used for history)
+                console.log('Conversation ID:', parsed.conversation_id);
+              } else if (parsed.type === 'done') {
+                // End of stream
+                controller.enqueue(encoder.encode('0:{"type":"finish","finishReason":"stop"}\n'));
+              } else if (parsed.type === 'error') {
+                // Error from backend
+                console.error('Backend error:', parsed.error);
+                controller.enqueue(encoder.encode(`3:${JSON.stringify({ error: parsed.error })}\n`));
+              }
+            } catch (e) {
+              // Skip malformed JSON
+              console.warn('Failed to parse SSE data:', data);
+            }
+          }
+        }
+      },
+    });
+
+    // Return the transformed stream
+    return new Response(response.body?.pipeThrough(transformStream), {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'X-Vercel-AI-Data-Stream': 'v1',
+      },
+    });
   } catch (error) {
     console.error('Chat API error:', error);
     return new Response(
