@@ -44,6 +44,35 @@ class UserResponse(UserBase):
 
 
 # ============================================================================
+# Authentication Schemas
+# ============================================================================
+
+class LoginRequest(BaseModel):
+    """Schema for login requests."""
+    email: EmailStr
+    password: str
+
+
+class TokenResponse(BaseModel):
+    """Schema for token responses."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+
+class RefreshTokenRequest(BaseModel):
+    """Schema for refresh token requests."""
+    refresh_token: str
+
+
+class AccessTokenResponse(BaseModel):
+    """Schema for access token refresh responses."""
+    access_token: str
+    token_type: str = "bearer"
+
+
+# ============================================================================
 # Conversation Schemas
 # ============================================================================
 

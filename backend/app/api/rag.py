@@ -12,8 +12,8 @@ from uuid import UUID
 import os
 import tempfile
 
-from app.dependencies import get_db
-from app.models.database import KnowledgePool, Document as DBDocument, DocumentStatus
+from app.dependencies import get_db, get_current_active_user
+from app.models.database import KnowledgePool, Document as DBDocument, DocumentStatus, User
 from app.models.schemas import (
     RAGSearchRequest,
     RAGSearchResponse,
@@ -26,9 +26,6 @@ from app.services.rag_service import RAGService
 
 router = APIRouter()
 
-# TODO: Replace with actual user authentication
-DEFAULT_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
-
 # Global RAG service instance (in production, use dependency injection)
 rag_service = RAGService()
 
@@ -37,13 +34,17 @@ rag_service = RAGService()
 async def create_knowledge_pool(
     pool_data: KnowledgePoolCreate,
     db: AsyncSession = Depends(get_db),
-    user_id: UUID = DEFAULT_USER_ID,
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Create a new knowledge pool.
 
     A knowledge pool is a collection of documents that can be searched together.
+
+    Requires authentication via JWT token.
     """
+    user_id = current_user.id
+
     # Generate collection name from pool name
     collection_name = f"user_{str(user_id)[:8]}_{pool_data.name.lower().replace(' ', '_')}"
 
@@ -74,11 +75,15 @@ async def create_knowledge_pool(
 @router.get("/pools", response_model=List[KnowledgePoolResponse])
 async def list_knowledge_pools(
     db: AsyncSession = Depends(get_db),
-    user_id: UUID = DEFAULT_USER_ID,
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     List all knowledge pools for the authenticated user.
+
+    Requires authentication via JWT token.
     """
+    user_id = current_user.id
+
     result = await db.execute(
         select(KnowledgePool).where(KnowledgePool.user_id == user_id)
     )
@@ -90,11 +95,15 @@ async def list_knowledge_pools(
 async def delete_knowledge_pool(
     pool_id: UUID,
     db: AsyncSession = Depends(get_db),
-    user_id: UUID = DEFAULT_USER_ID,
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Delete a knowledge pool and all its documents.
+
+    Requires authentication via JWT token.
     """
+    user_id = current_user.id
+
     # Get pool
     result = await db.execute(
         select(KnowledgePool).where(
@@ -123,14 +132,18 @@ async def upload_document(
     pool_id: UUID = ...,
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: AsyncSession = Depends(get_db),
-    user_id: UUID = DEFAULT_USER_ID,
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Upload a document to a knowledge pool.
 
     Supports: PDF, DOCX, TXT, MD, and other text formats.
     Document is processed in the background (embedded and indexed).
+
+    Requires authentication via JWT token.
     """
+    user_id = current_user.id
+
     # Verify pool exists and belongs to user
     result = await db.execute(
         select(KnowledgePool).where(
@@ -234,13 +247,17 @@ async def process_document_background(
 async def search_documents(
     request: RAGSearchRequest,
     db: AsyncSession = Depends(get_db),
-    user_id: UUID = DEFAULT_USER_ID,
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Search for relevant documents using semantic search.
 
     Uses vector embeddings to find documents similar to the query.
+
+    Requires authentication via JWT token.
     """
+    user_id = current_user.id
+
     # Get collection names for the requested pools
     if request.knowledge_pool_ids:
         result = await db.execute(

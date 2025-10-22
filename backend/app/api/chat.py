@@ -15,7 +15,7 @@ import os
 from typing import AsyncGenerator
 from datetime import datetime
 
-from app.dependencies import get_db
+from app.dependencies import get_db, get_current_active_user
 from app.models.database import (
     Conversation,
     Message as DBMessage,
@@ -23,6 +23,7 @@ from app.models.database import (
     ScratchpadEntry,
     ScratchpadEntryType,
     KnowledgePool,
+    User,
 )
 from app.models.schemas import ChatRequest, ChatMessage
 from app.services.rag_service import RAGService
@@ -32,9 +33,6 @@ router = APIRouter()
 # Initialize clients
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 rag_service = RAGService()
-
-# TODO: Replace with actual user authentication
-DEFAULT_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 
 async def get_scratchpad_context(db: AsyncSession, user_id: UUID) -> str:
@@ -208,7 +206,7 @@ Remember to cite sources when using information from the retrieved knowledge."""
 async def stream_chat(
     request: ChatRequest,
     db: AsyncSession = Depends(get_db),
-    user_id: UUID = DEFAULT_USER_ID,
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Stream chat response with Server-Sent Events.
@@ -218,7 +216,10 @@ async def stream_chat(
     - Scratchpad context injection (when use_scratchpad=True)
     - Conversation persistence
     - Message history
+
+    Requires authentication via JWT token.
     """
+    user_id = current_user.id
 
     async def generate() -> AsyncGenerator[str, None]:
         try:

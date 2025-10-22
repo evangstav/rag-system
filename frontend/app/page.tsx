@@ -4,16 +4,25 @@ import { useChat } from '@ai-sdk/react';
 import { useState, useRef, useEffect } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Scratchpad } from '@/components/Scratchpad';
+import { AuthGuard } from '@/components/AuthGuard';
+import { useAuthStore } from '@/lib/auth-store';
+import { logout } from '@/lib/api-client';
 
-export default function Chat() {
+function ChatContent() {
+  const user = useAuthStore((state) => state.user);
+  const accessToken = useAuthStore((state) => state.accessToken);
   const [useRag, setUseRag] = useState(false);
   const [useScratchpad, setUseScratchpad] = useState(false);
   const [input, setInput] = useState('');
   const [showScratchpad, setShowScratchpad] = useState(true);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { messages, sendMessage, isLoading } = useChat({
     api: '/api/chat',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
   });
 
   const scrollToBottom = () => {
@@ -76,8 +85,8 @@ export default function Chat() {
                     </div>
                   </div>
 
-                  {/* Context Pills */}
-                  <div className="flex items-center gap-2">
+                  {/* Context Pills and User Menu */}
+                  <div className="flex items-center gap-3">
                     <button
                       onClick={() => setUseScratchpad(!useScratchpad)}
                       className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${useScratchpad
@@ -109,6 +118,40 @@ export default function Chat() {
                         RAG
                       </span>
                     </button>
+
+                    {/* User Menu */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowUserMenu(!showUserMenu)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                          <span className="text-white text-xs font-medium">
+                            {user?.username?.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <span className="text-sm font-medium text-slate-700">{user?.username}</span>
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      {showUserMenu && (
+                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50">
+                          <div className="px-4 py-2 border-b border-slate-200">
+                            <p className="text-xs text-slate-500">Signed in as</p>
+                            <p className="text-sm font-medium text-slate-900 truncate">{user?.email}</p>
+                          </div>
+                          <button
+                            onClick={() => logout()}
+                            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            Sign Out
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -303,5 +346,13 @@ export default function Chat() {
         </Panel>
       </PanelGroup>
     </div>
+  );
+}
+
+export default function Chat() {
+  return (
+    <AuthGuard>
+      <ChatContent />
+    </AuthGuard>
   );
 }
