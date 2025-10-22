@@ -10,10 +10,21 @@ export async function GET(
   try {
     const { id } = params;
 
+    // Extract authorization token from request headers
+    const authHeader = request.headers.get('authorization');
+
+    // Build headers for backend request
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    // Forward authorization token if present
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
+
     const response = await fetch(`${API_URL}/api/conversations/${id}`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -44,11 +55,22 @@ export async function PATCH(
     const { id } = params;
     const body = await request.json();
 
+    // Extract authorization token from request headers
+    const authHeader = request.headers.get('authorization');
+
+    // Build headers for backend request
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    // Forward authorization token if present
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
+
     const response = await fetch(`${API_URL}/api/conversations/${id}`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(body),
     });
 
@@ -79,8 +101,20 @@ export async function DELETE(
   try {
     const { id } = params;
 
+    // Extract authorization token from request headers
+    const authHeader = request.headers.get('authorization');
+
+    // Build headers for backend request
+    const headers: HeadersInit = {};
+
+    // Forward authorization token if present
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
+
     const response = await fetch(`${API_URL}/api/conversations/${id}`, {
       method: 'DELETE',
+      headers,
     });
 
     if (!response.ok) {

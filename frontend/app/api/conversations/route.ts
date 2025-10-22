@@ -9,12 +9,23 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get('limit') || '50';
     const offset = searchParams.get('offset') || '0';
 
+    // Extract authorization token from request headers
+    const authHeader = request.headers.get('authorization');
+
+    // Build headers for backend request
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    // Forward authorization token if present
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
+
     const response = await fetch(
       `${API_URL}/api/conversations?limit=${limit}&offset=${offset}`,
       {
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
       }
     );
 
@@ -42,11 +53,22 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
+    // Extract authorization token from request headers
+    const authHeader = request.headers.get('authorization');
+
+    // Build headers for backend request
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    // Forward authorization token if present
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
+
     const response = await fetch(`${API_URL}/api/conversations`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(body),
     });
 

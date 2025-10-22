@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useAuthStore } from '@/lib/auth-store';
 
 export interface Conversation {
   id: string;
@@ -17,6 +18,18 @@ export interface Message {
   content: string;
   created_at: string;
 }
+
+// Helper to get auth headers
+const getAuthHeaders = (): HeadersInit => {
+  const accessToken = useAuthStore.getState().accessToken;
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  return headers;
+};
 
 interface ConversationState {
   // State
@@ -50,7 +63,9 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   loadConversations: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch('/api/conversations');
+      const response = await fetch('/api/conversations', {
+        headers: getAuthHeaders(),
+      });
       if (!response.ok) {
         throw new Error('Failed to load conversations');
       }
@@ -70,7 +85,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     try {
       const response = await fetch('/api/conversations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ title }),
       });
 
@@ -103,6 +118,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     try {
       const response = await fetch(`/api/conversations/${id}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -131,7 +147,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     try {
       const response = await fetch(`/api/conversations/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(updates),
       });
 
