@@ -25,19 +25,30 @@ export async function POST(req: Request) {
   } = await req.json();
 
   try {
+    // Extract authorization token from request headers
+    const authHeader = req.headers.get('authorization');
+
     // Convert UIMessage format to backend format
     const backendMessages = messages.map((msg) => ({
       role: msg.role,
       content: msg.parts?.filter((part) => part.type === 'text').map((part) => part.text).join('') || '',
     }));
 
+    // Build headers for backend request
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    // Forward authorization token if present
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
+
     // Call backend streaming endpoint
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     const response = await fetch(`${backendUrl}/api/chat/stream`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         messages: backendMessages,
         use_rag: useRag,

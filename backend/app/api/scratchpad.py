@@ -11,27 +11,27 @@ from datetime import datetime, date
 from uuid import UUID
 import uuid
 
-from app.dependencies import get_db
-from app.models.database import ScratchpadEntry, ScratchpadEntryType
+from app.dependencies import get_db, get_current_active_user
+from app.models.database import ScratchpadEntry, ScratchpadEntryType, User
 from app.models.schemas import ScratchpadData, TodoItem
 
 router = APIRouter()
-
-# TODO: Replace with actual user authentication
-# For now, use a hardcoded default user ID
-DEFAULT_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 
 @router.get("/", response_model=ScratchpadData)
 async def get_scratchpad(
     db: AsyncSession = Depends(get_db),
-    user_id: UUID = DEFAULT_USER_ID,
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get current scratchpad data for the authenticated user.
 
     Returns todos, notes, and today's journal entry.
+
+    Requires authentication via JWT token.
     """
+    user_id = current_user.id
+
     # Fetch all scratchpad entries for the user
     result = await db.execute(
         select(ScratchpadEntry).where(ScratchpadEntry.user_id == user_id)
@@ -73,13 +73,16 @@ async def get_scratchpad(
 async def save_scratchpad(
     data: ScratchpadData,
     db: AsyncSession = Depends(get_db),
-    user_id: UUID = DEFAULT_USER_ID,
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Save scratchpad data for the authenticated user.
 
     Updates todos, notes, and journal entry.
+
+    Requires authentication via JWT token.
     """
+    user_id = current_user.id
     today = datetime.now()
 
     # 1. Handle todos
