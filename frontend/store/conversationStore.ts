@@ -20,8 +20,7 @@ export interface Message {
 }
 
 // Helper to get auth headers
-const getAuthHeaders = (): HeadersInit => {
-  const accessToken = useAuthStore.getState().accessToken;
+const getAuthHeaders = (accessToken: string | null): HeadersInit => {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
@@ -63,8 +62,9 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   loadConversations: async () => {
     set({ isLoading: true, error: null });
     try {
+      const accessToken = useAuthStore.getState().accessToken;
       const response = await fetch('/api/conversations', {
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(accessToken),
       });
       if (!response.ok) {
         throw new Error('Failed to load conversations');
@@ -83,9 +83,10 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   createConversation: async (title) => {
     set({ isLoading: true, error: null });
     try {
+      const accessToken = useAuthStore.getState().accessToken;
       const response = await fetch('/api/conversations', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(accessToken),
         body: JSON.stringify({ title }),
       });
 
@@ -116,9 +117,10 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   deleteConversation: async (id) => {
     set({ isLoading: true, error: null });
     try {
+      const accessToken = useAuthStore.getState().accessToken;
       const response = await fetch(`/api/conversations/${id}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(accessToken),
       });
 
       if (!response.ok) {
@@ -145,9 +147,10 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   updateConversation: async (id, updates) => {
     set({ isLoading: true, error: null });
     try {
+      const accessToken = useAuthStore.getState().accessToken;
       const response = await fetch(`/api/conversations/${id}`, {
         method: 'PATCH',
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(accessToken),
         body: JSON.stringify(updates),
       });
 
