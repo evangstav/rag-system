@@ -1,0 +1,103 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+// GET /api/conversations/[id] - Get a specific conversation
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params;
+
+    const response = await fetch(`${API_URL}/api/conversations/${id}`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      return NextResponse.json(
+        { error: 'Failed to fetch conversation', details: error },
+        { status: response.status }
+      );
+    }
+
+    const conversation = await response.json();
+    return NextResponse.json(conversation);
+  } catch (error) {
+    console.error('Error fetching conversation:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/conversations/[id] - Update a conversation
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params;
+    const body = await request.json();
+
+    const response = await fetch(`${API_URL}/api/conversations/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      return NextResponse.json(
+        { error: 'Failed to update conversation', details: error },
+        { status: response.status }
+      );
+    }
+
+    const conversation = await response.json();
+    return NextResponse.json(conversation);
+  } catch (error) {
+    console.error('Error updating conversation:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/conversations/[id] - Delete a conversation
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params;
+
+    const response = await fetch(`${API_URL}/api/conversations/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      return NextResponse.json(
+        { error: 'Failed to delete conversation', details: error },
+        { status: response.status }
+      );
+    }
+
+    const result = await response.json();
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}

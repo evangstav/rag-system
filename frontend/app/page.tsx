@@ -8,6 +8,8 @@ import { Scratchpad } from '@/components/Scratchpad';
 import { AuthGuard } from '@/components/AuthGuard';
 import { useAuthStore } from '@/lib/auth-store';
 import { logout } from '@/lib/api-client';
+import { ConversationSidebar } from '@/components/ConversationSidebar';
+import { useConversationStore } from '@/store/conversationStore';
 
 function ChatContent() {
   const user = useAuthStore((state) => state.user);
@@ -19,7 +21,9 @@ function ChatContent() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, sendMessage, isLoading } = useChat({
+  const { currentConversationId, createConversation } = useConversationStore();
+
+  const { messages, sendMessage, isLoading, setMessages } = useChat({
     transport: new TextStreamChatTransport({
       api: '/api/chat',
       headers: () => ({
@@ -27,6 +31,39 @@ function ChatContent() {
       }),
     }),
   });
+
+  // Load messages when conversation changes
+  useEffect(() => {
+    const loadMessages = async () => {
+      if (currentConversationId) {
+        try {
+          const accessToken = useAuthStore.getState().accessToken;
+          const response = await fetch(`/api/conversations/${currentConversationId}/messages`, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          });
+          if (response.ok) {
+            const messagesData = await response.json();
+            // Convert backend message format to AI SDK format
+            const formattedMessages = messagesData.map((msg: any) => ({
+              id: msg.id,
+              role: msg.role,
+              parts: [{ type: 'text', text: msg.content }],
+            }));
+            setMessages(formattedMessages);
+          }
+        } catch (error) {
+          console.error('Failed to load messages:', error);
+        }
+      } else {
+        // Clear messages if no conversation selected
+        setMessages([]);
+      }
+    };
+
+    loadMessages();
+  }, [currentConversationId, setMessages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -39,10 +76,16 @@ function ChatContent() {
   return (
     <div className="flex h-screen">
       <PanelGroup direction="horizontal">
+        {/* Conversation Sidebar Panel */}
+        <Panel defaultSize={20} minSize={15} maxSize={30}>
+          <ConversationSidebar />
+        </Panel>
+        <PanelResizeHandle className="w-1 bg-slate-700 hover:bg-violet-500 transition-colors" />
+
         {/* Scratchpad Panel */}
         {showScratchpad && (
           <>
-            <Panel defaultSize={25} minSize={20} maxSize={40}>
+            <Panel defaultSize={20} minSize={15} maxSize={35}>
               <Scratchpad />
             </Panel>
             <PanelResizeHandle className="w-1 bg-slate-200 hover:bg-violet-400 transition-colors" />
@@ -50,7 +93,7 @@ function ChatContent() {
         )}
 
         {/* Chat Panel */}
-        <Panel defaultSize={75} minSize={50}>
+        <Panel defaultSize={60} minSize={40}>
           <div className="flex flex-col h-full bg-gradient-to-br from-slate-50 via-white to-slate-50">
             {/* Header */}
             <header className="flex-shrink-0 border-b border-slate-200 bg-white/80 backdrop-blur-xl">
@@ -297,14 +340,21 @@ function ChatContent() {
             <div className="flex-shrink-0 border-t border-slate-200 bg-white/80 backdrop-blur-xl">
               <div className="max-w-4xl mx-auto px-6 py-4">
                 <form
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
                     if (input.trim()) {
+                      // Create a new conversation if none is selected
+                      let conversationId = currentConversationId;
+                      if (!conversationId) {
+                        conversationId = await createConversation();
+                      }
+
                       // Pass dynamic values as request-level options
                       sendMessage(
                         { text: input },
                         {
                           body: {
+                            conversationId,
                             useRag,
                             useScratchpad,
                             knowledgePoolIds: [],
