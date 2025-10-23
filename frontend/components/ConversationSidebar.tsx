@@ -18,9 +18,12 @@ export function ConversationSidebar() {
 
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // `loadConversations` is a Zustand store action that is re-created on every render.
+  // We intentionally omit it from the dependency array to avoid infinite re-renders.
   useEffect(() => {
     loadConversations();
-  }, [loadConversations]);
+  }, []);
 
   const handleNewConversation = async () => {
     await createConversation();
