@@ -336,12 +336,13 @@ async def stream_chat(
                 conversation_id=conversation_id,
                 role=MessageRole.ASSISTANT,
                 content=full_response,
-                metadata=context_metadata if context_metadata else None,
+                extra_metadata=context_metadata if context_metadata else None,
             )
             db.add(assistant_db_message)
 
             # Update conversation title if it's the first exchange
-            if not conversation.title and len(history_messages) == 0:
+            # Check if title is None, 'None', or empty, and this is the first exchange (no history before this message)
+            if (not conversation.title or conversation.title.strip() == "" or conversation.title == "None") and len(history_messages) == 0:
                 # Use first 50 chars of user query as title
                 conversation.title = user_query[:50] + ("..." if len(user_query) > 50 else "")
 

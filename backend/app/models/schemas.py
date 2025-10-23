@@ -118,14 +118,14 @@ class MessageBase(BaseModel):
 class MessageCreate(MessageBase):
     """Schema for creating a message."""
     conversation_id: UUID
-    metadata: Optional[dict] = None
+    extra_metadata: Optional[dict] = None
 
 
 class MessageResponse(MessageBase):
     """Schema for message responses."""
     id: UUID
     conversation_id: UUID
-    metadata: Optional[dict] = None
+    extra_metadata: Optional[dict] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

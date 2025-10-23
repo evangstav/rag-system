@@ -5,10 +5,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 // GET /api/conversations/[id] - Get a specific conversation
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     // Extract authorization token from request headers
     const authHeader = request.headers.get('authorization');
@@ -49,10 +49,10 @@ export async function GET(
 // PATCH /api/conversations/[id] - Update a conversation
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
 
     // Extract authorization token from request headers
@@ -96,10 +96,10 @@ export async function PATCH(
 // DELETE /api/conversations/[id] - Delete a conversation
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     // Extract authorization token from request headers
     const authHeader = request.headers.get('authorization');

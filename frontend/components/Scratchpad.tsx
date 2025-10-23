@@ -6,7 +6,7 @@ import { useAuthStore } from '@/lib/auth-store';
 interface Todo {
   id: string;
   text: string;
-  done: boolean;
+  completed: boolean;
 }
 
 interface ScratchpadData {
@@ -87,7 +87,7 @@ export function Scratchpad() {
     const newTodo: Todo = {
       id: crypto.randomUUID(),
       text: newTodoText.trim(),
-      done: false,
+      completed: false,
     };
 
     setTodos([...todos, newTodo]);
@@ -97,7 +97,7 @@ export function Scratchpad() {
   const toggleTodo = (id: string) => {
     setTodos(
       todos.map((todo) =>
-        todo.id === id ? { ...todo, done: !todo.done } : todo
+        todo.id === id ? { ...todo, completed: !todo.completed } : todo
       )
     );
   };
@@ -185,12 +185,12 @@ export function Scratchpad() {
                   >
                     <input
                       type="checkbox"
-                      checked={todo.done}
+                      checked={todo.completed}
                       onChange={() => toggleTodo(todo.id)}
                       className="w-4 h-4 text-violet-500 rounded focus:ring-2 focus:ring-violet-500"
                     />
                     <span
-                      className={`flex-1 text-sm ${todo.done
+                      className={`flex-1 text-sm ${todo.completed
                           ? 'text-slate-400 line-through'
                           : 'text-slate-700'
                         }`}
