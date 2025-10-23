@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, chat, scratchpad, rag
+from app.api import auth, chat, conversations, scratchpad, rag
 
 
 app = FastAPI(title="RAG Chat System")
@@ -16,6 +16,7 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
+app.include_router(conversations.router, prefix="/api/conversations", tags=["conversations"])
 app.include_router(scratchpad.router, prefix="/api/scratchpad", tags=["scratchpad"])
 app.include_router(rag.router, prefix="/api/rag", tags=["rag"])
 

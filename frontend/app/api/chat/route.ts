@@ -17,11 +17,13 @@ export async function POST(req: Request) {
     useRag = false,
     useScratchpad = false,
     knowledgePoolIds = [],
+    conversationId = null,
   }: {
     messages: UIMessage[];
     useRag?: boolean;
     useScratchpad?: boolean;
     knowledgePoolIds?: string[];
+    conversationId?: string | null;
   } = await req.json();
 
   try {
@@ -58,6 +60,7 @@ export async function POST(req: Request) {
       headers,
       body: JSON.stringify({
         messages: backendMessages,
+        conversation_id: conversationId,
         use_rag: useRag,
         use_scratchpad: useScratchpad,
         knowledge_pool_ids: knowledgePoolIds,
