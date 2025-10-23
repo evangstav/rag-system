@@ -1,6 +1,7 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
+import { TextStreamChatTransport } from 'ai';
 import { useState, useRef, useEffect } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Scratchpad } from '@/components/Scratchpad';
@@ -19,10 +20,12 @@ function ChatContent() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { messages, sendMessage, isLoading } = useChat({
-    api: '/api/chat',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    transport: new TextStreamChatTransport({
+      api: '/api/chat',
+      headers: () => ({
+        Authorization: `Bearer ${useAuthStore.getState().accessToken}`,
+      }),
+    }),
   });
 
   const scrollToBottom = () => {

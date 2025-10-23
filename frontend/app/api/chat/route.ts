@@ -27,12 +27,19 @@ export async function POST(req: Request) {
   try {
     // Extract authorization token from request headers
     const authHeader = req.headers.get('authorization');
+    console.log('=== Chat API Debug ===');
+    console.log('Authorization header:', authHeader);
 
     // Convert UIMessage format to backend format
-    const backendMessages = messages.map((msg) => ({
-      role: msg.role,
-      content: msg.parts?.filter((part) => part.type === 'text').map((part) => part.text).join('') || '',
-    }));
+    const backendMessages = messages.map((msg) => {
+      let content = '';
+      if (msg.parts && Array.isArray(msg.parts)) {
+        content = msg.parts.filter((part: any) => part.type === 'text').map((part: any) => part.text).join('');
+      } else if ((msg as any).content) {
+        content = typeof (msg as any).content === 'string' ? (msg as any).content : JSON.stringify((msg as any).content);
+      }
+      return { role: msg.role, content };
+    });
 
     // Build headers for backend request
     const headers: HeadersInit = {
@@ -62,13 +69,17 @@ export async function POST(req: Request) {
       throw new Error(`Backend returned ${response.status}: ${response.statusText}`);
     }
 
-    // Transform backend SSE stream to AI SDK format
+    if (!response.body) {
+      throw new Error('No response body');
+    }
+
+    // Transform SSE stream to plain text stream
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
 
     const transformStream = new TransformStream({
       async transform(chunk, controller) {
-        const text = decoder.decode(chunk);
+        const text = decoder.decode(chunk, { stream: true });
         const lines = text.split('\n');
 
         for (const line of lines) {
@@ -80,40 +91,22 @@ export async function POST(req: Request) {
 
               // Handle different event types from backend
               if (parsed.type === 'content') {
-                // Transform to AI SDK format
-                const aiSDKChunk = {
-                  type: 'text-delta',
-                  textDelta: parsed.content,
-                };
-                controller.enqueue(encoder.encode(`0:${JSON.stringify(aiSDKChunk)}\n`));
-              } else if (parsed.type === 'metadata') {
-                // Store metadata (could be used to show sources in UI)
-                console.log('Context metadata:', parsed.metadata);
-              } else if (parsed.type === 'conversation_id') {
-                // Store conversation ID (could be used for history)
-                console.log('Conversation ID:', parsed.conversation_id);
-              } else if (parsed.type === 'done') {
-                // End of stream
-                controller.enqueue(encoder.encode('0:{"type":"finish","finishReason":"stop"}\n'));
-              } else if (parsed.type === 'error') {
-                // Error from backend
-                console.error('Backend error:', parsed.error);
-                controller.enqueue(encoder.encode(`3:${JSON.stringify({ error: parsed.error })}\n`));
+                // Forward just the text content
+                controller.enqueue(encoder.encode(parsed.content));
               }
+              // Ignore metadata, conversation_id, done, etc.
             } catch (e) {
               // Skip malformed JSON
-              console.warn('Failed to parse SSE data:', data);
             }
           }
         }
       },
     });
 
-    // Return the transformed stream
-    return new Response(response.body?.pipeThrough(transformStream), {
+    // Return plain text stream
+    return new Response(response.body.pipeThrough(transformStream), {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
-        'X-Vercel-AI-Data-Stream': 'v1',
       },
     });
   } catch (error) {

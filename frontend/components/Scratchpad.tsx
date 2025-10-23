@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAuthStore } from '@/lib/auth-store';
 
 interface Todo {
   id: string;
@@ -15,6 +16,7 @@ interface ScratchpadData {
 }
 
 export function Scratchpad() {
+  const accessToken = useAuthStore((state) => state.accessToken);
   const [activeTab, setActiveTab] = useState<'todos' | 'notes' | 'journal'>(
     'todos'
   );
@@ -26,20 +28,28 @@ export function Scratchpad() {
 
   // Load scratchpad data on mount
   useEffect(() => {
-    loadScratchpad();
-  }, []);
+    if (accessToken) {
+      loadScratchpad();
+    }
+  }, [accessToken]);
 
   // Auto-save when data changes (debounced)
   useEffect(() => {
     const timer = setTimeout(() => {
-      saveScratchpad();
+      if (accessToken) {
+        saveScratchpad();
+      }
     }, 1000);
     return () => clearTimeout(timer);
-  }, [todos, notes, journal]);
+  }, [todos, notes, journal, accessToken]);
 
   const loadScratchpad = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/scratchpad');
+      const response = await fetch('http://localhost:8000/api/scratchpad', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
       if (response.ok) {
         const data: ScratchpadData = await response.json();
         setTodos(data.todos || []);
@@ -58,7 +68,10 @@ export function Scratchpad() {
     try {
       await fetch('http://localhost:8000/api/scratchpad', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({ todos, notes, journal }),
       });
     } catch (error) {

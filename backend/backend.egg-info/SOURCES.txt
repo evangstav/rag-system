@@ -1,9 +1,11 @@
 README.md
 pyproject.toml
+app/auth.py
 app/config.py
 app/database.py
 app/dependencies.py
 app/main.py
+app/api/auth.py
 app/api/chat.py
 app/api/rag.py
 app/api/scratchpad.py
