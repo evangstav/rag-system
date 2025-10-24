@@ -92,17 +92,26 @@ class EvaluationRunner:
         results: List[RetrievalResult],
     ) -> EvaluationMetrics:
         """Compute all retrieval metrics for a query."""
+        # Deduplicate document IDs while preserving order for ranking metrics
+        # This ensures we evaluate at document-level, not chunk-level
+        seen = set()
+        unique_retrieved_ids = []
+        for doc_id in retrieved_ids:
+            if doc_id not in seen:
+                seen.add(doc_id)
+                unique_retrieved_ids.append(doc_id)
+
         return EvaluationMetrics(
-            precision_at_k=precision_at_k(retrieved_ids, relevant_ids, self.k),
-            recall_at_k=recall_at_k(retrieved_ids, relevant_ids, self.k),
-            mrr=mean_reciprocal_rank(retrieved_ids, relevant_ids),
-            ndcg_at_k=ndcg_at_k(retrieved_ids, relevant_ids, self.k),
-            map_score=mean_average_precision(retrieved_ids, relevant_ids),
-            num_retrieved=len(retrieved_ids),
+            precision_at_k=precision_at_k(unique_retrieved_ids, relevant_ids, self.k),
+            recall_at_k=recall_at_k(unique_retrieved_ids, relevant_ids, self.k),
+            mrr=mean_reciprocal_rank(unique_retrieved_ids, relevant_ids),
+            ndcg_at_k=ndcg_at_k(unique_retrieved_ids, relevant_ids, self.k),
+            map_score=mean_average_precision(unique_retrieved_ids, relevant_ids),
+            num_retrieved=len(unique_retrieved_ids),
             num_relevant=len(relevant_ids),
             top_score=results[0].score if results else 0.0,
             relevance_at_position=compute_relevance_at_positions(
-                retrieved_ids, relevant_ids, self.k
+                unique_retrieved_ids, relevant_ids, self.k
             ),
         )
 

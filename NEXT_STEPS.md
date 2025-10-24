@@ -7,35 +7,41 @@
 ## 🎯 Immediate Priorities (This Week)
 
 ### 1. Add Search Interface ⭐ **Most Important**
+
 **Why:** Core RAG feature - users need to search their documents!
 **Where:** New tab in scratchpad or separate panel
 **Tasks:**
-- [ ] Create search input component
-- [ ] Display search results with document citations
-- [ ] Show relevance scores
-- [ ] Highlight matching text
-- [ ] Link to source documents
+
+- [x] Create search input component
+- [x] Display search results with document citations
+- [x] Show relevance scores
+- [x] Highlight matching text
+- [x] Link to source documents
 
 **Estimated Time:** 4-6 hours
 
 ---
 
 ### 2. Improve Error Handling
+
 **Why:** Better user experience, reduce confusion
 **Tasks:**
-- [ ] Install toast library (`npm install sonner`)
-- [ ] Replace `alert()` with toast notifications
-- [ ] Add retry button for failed uploads
-- [ ] Show detailed error messages
-- [ ] Add error boundaries in React
+
+- [x] Install toast library (`npm install sonner`)
+- [x] Replace `alert()` with toast notifications
+- [x] Add retry button for failed uploads
+- [x] Show detailed error messages
+- [x] Add error boundaries in React
 
 **Estimated Time:** 3-4 hours
 
 ---
 
 ### 3. Add Document Metadata Display
+
 **Why:** Users want to see what they've uploaded
 **Tasks:**
+
 - [ ] Show file size, type, upload date
 - [ ] Display chunk count and token usage
 - [ ] Add preview/download buttons
@@ -46,8 +52,10 @@
 ---
 
 ### 4. Implement Title Generation
+
 **Why:** Current conversations show "New Conversation" - not helpful
 **Tasks:**
+
 - [ ] Generate title from first user message
 - [ ] Update conversation on first message send
 - [ ] Allow manual title editing
@@ -75,6 +83,7 @@ Do these when you have 30-60 minutes:
 ## 📦 Technical Improvements
 
 ### Testing (Important before production)
+
 - [ ] Set up pytest for backend
 - [ ] Add tests for RAG endpoints
 - [ ] Set up React Testing Library
@@ -86,6 +95,7 @@ Do these when you have 30-60 minutes:
 ---
 
 ### Performance
+
 - [ ] Add Redis caching for embeddings
 - [ ] Implement pagination for document lists
 - [ ] Add lazy loading for conversation history
@@ -99,18 +109,21 @@ Do these when you have 30-60 minutes:
 ## 🎨 Polish & UX
 
 ### Notifications & Feedback
+
 - [ ] Toast notifications for all actions
 - [ ] Loading skeletons (not just spinners)
 - [ ] Optimistic UI updates
 - [ ] Progress bars for long operations
 
 ### Accessibility
+
 - [ ] Keyboard shortcuts (Ctrl+K for search, etc.)
 - [ ] ARIA labels on all interactive elements
 - [ ] Focus management in modals
 - [ ] Screen reader announcements
 
 ### Mobile
+
 - [ ] Responsive panel layout
 - [ ] Touch-friendly controls
 - [ ] Bottom navigation for mobile
@@ -121,6 +134,7 @@ Do these when you have 30-60 minutes:
 ## 🚀 Future Features (Nice to Have)
 
 ### Advanced RAG
+
 - [ ] Hybrid search (semantic + keyword)
 - [ ] Document deduplication
 - [ ] OCR for scanned PDFs
@@ -128,12 +142,14 @@ Do these when you have 30-60 minutes:
 - [ ] Multi-language support
 
 ### Collaboration
+
 - [ ] Share knowledge pools with other users
 - [ ] Team workspaces
 - [ ] Comments on documents
 - [ ] Activity feed
 
 ### Integrations
+
 - [ ] Google Drive import
 - [ ] Notion sync
 - [ ] Slack bot
@@ -153,24 +169,28 @@ Do these when you have 30-60 minutes:
 ## 🎯 Recommended Work Order
 
 **Week 1:**
+
 1. Add search interface
 2. Implement title generation
 3. Improve error handling
 4. Do 3-4 quick wins
 
 **Week 2:**
+
 1. Add document metadata display
 2. Set up basic testing infrastructure
 3. Add toast notifications
 4. Improve mobile responsiveness
 
 **Week 3:**
+
 1. Write tests for critical paths
 2. Add Redis caching
 3. Implement pagination
 4. Polish UI/UX
 
 **Week 4:**
+
 1. Security audit
 2. Performance optimization
 3. Documentation updates

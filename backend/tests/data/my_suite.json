@@ -1,0 +1,281 @@
+{
+  "name": "S&C RAG Evaluation Suite (v1)",
+  "description": "Evaluation suite for strength, hypertrophy, conditioning, recovery, and nutrition queries derived from the 'How to Train Guide'",
+  "queries": [
+    {
+      "id": "q1",
+      "query": "What are the core principles of effective resistance training?",
+      "relevant_document_ids": [
+        "eebec737-9cf9-4dc4-b3b9-18daf6e7feb7"
+      ],
+      "collection_name": "user_07c5cbca_strength_and_conditioning",
+      "query_type": "factual",
+      "difficulty": "easy",
+      "description": "Tests recall of foundational pillars (consistency, progressive overload, recovery, mindset).",
+      "expected_answer_keywords": [
+        "consistency",
+        "progressive overload",
+        "recovery",
+        "sleep",
+        "nutrition",
+        "mindset",
+        "adherence"
+      ],
+      "metadata": {
+        "source_hint": "General principles section"
+      }
+    },
+    {
+      "id": "q2",
+      "query": "How should I program for maximal strength gains?",
+      "relevant_document_ids": [
+        "eebec737-9cf9-4dc4-b3b9-18daf6e7feb7"
+      ],
+      "collection_name": "user_07c5cbca_strength_and_conditioning",
+      "query_type": "technical",
+      "difficulty": "medium",
+      "description": "Asks for loads, sets, rest, frequency, tempo, and exercise order for strength.",
+      "expected_answer_keywords": [
+        "\u226585% 1RM",
+        "1\u20135 reps",
+        "2\u20135 minutes rest",
+        "5\u201310+ sets per week",
+        "compound",
+        "multi-joint",
+        "train 1\u20132x/week+ per muscle",
+        "fast to moderate tempo",
+        "large before small"
+      ],
+      "metadata": {
+        "goal": "precision programming variables"
+      }
+    },
+    {
+      "id": "q3",
+      "query": "How should I program for hypertrophy?",
+      "relevant_document_ids": [
+        "eebec737-9cf9-4dc4-b3b9-18daf6e7feb7"
+      ],
+      "collection_name": "user_07c5cbca_strength_and_conditioning",
+      "query_type": "technical",
+      "difficulty": "medium",
+      "description": "Asks for recommended intensity, reps, sets, rest, frequency, tempo, and exercise selection for muscle growth.",
+      "expected_answer_keywords": [
+        "60\u201380% 1RM",
+        "6\u201312 reps",
+        "3\u20136 sets",
+        "10\u201320+ sets per week",
+        "1\u20132 minutes rest",
+        "moderate to slow tempo",
+        "compound and isolation",
+        "2\u20133x/week"
+      ],
+      "metadata": {
+        "goal": "compare vs strength prescription"
+      }
+    },
+    {
+      "id": "q4",
+      "query": "Do I need to train to failure to build strength or muscle?",
+      "relevant_document_ids": [
+        "eebec737-9cf9-4dc4-b3b9-18daf6e7feb7"
+      ],
+      "collection_name": "user_07c5cbca_strength_and_conditioning",
+      "query_type": "myth-busting",
+      "difficulty": "easy",
+      "description": "Checks nuanced guidance on failure vs stopping short and exercise selection.",
+      "expected_answer_keywords": [
+        "not required",
+        "3\u20134 reps in reserve",
+        "similar strength gains",
+        "use on single-joint/machines",
+        "compound caution",
+        "recovery cost"
+      ],
+      "metadata": {
+        "risk": "overfatigue if misapplied"
+      }
+    },
+    {
+      "id": "q5",
+      "query": "Should I stretch before or after lifting to improve performance or reduce injury?",
+      "relevant_document_ids": [
+        "eebec737-9cf9-4dc4-b3b9-18daf6e7feb7"
+      ],
+      "collection_name": "user_07c5cbca_strength_and_conditioning",
+      "query_type": "factual",
+      "difficulty": "easy",
+      "description": "Assesses evidence on general/dynamic warm-ups and stretching effects.",
+      "expected_answer_keywords": [
+        "dynamic warm-up can help heavy lifting",
+        "general warm-up not necessary",
+        "pre-lift static stretching reduces strength/power",
+        "stretching does not reduce injury or DOMS",
+        "resistance training improves ROM"
+      ],
+      "metadata": {
+        "pitfall": "static stretching pre-lift"
+      }
+    },
+    {
+      "id": "q6",
+      "query": "What is the Norwegian 4\u00d74 HIIT protocol and how do I execute it?",
+      "relevant_document_ids": [
+        "eebec737-9cf9-4dc4-b3b9-18daf6e7feb7"
+      ],
+      "collection_name": "user_07c5cbca_strength_and_conditioning",
+      "query_type": "procedural",
+      "difficulty": "easy",
+      "description": "Looks for exact work, recovery, intensity, and session duration.",
+      "expected_answer_keywords": [
+        "4\u00d74 minutes",
+        "85\u201395% HRmax",
+        "3 minutes active recovery ~70% HRmax",
+        "\u224845 minutes with warmup/cooldown",
+        "VO2 max improvements"
+      ],
+      "metadata": {
+        "equipment": "treadmill/bike/rower"
+      }
+    },
+    {
+      "id": "q7",
+      "query": "How do Tabata intervals work and what adaptations can I expect?",
+      "relevant_document_ids": [
+        "eebec737-9cf9-4dc4-b3b9-18daf6e7feb7"
+      ],
+      "collection_name": "user_07c5cbca_strength_and_conditioning",
+      "query_type": "procedural",
+      "difficulty": "medium",
+      "description": "Seeks 20s on/10s off \u00d78, sets, rests, duration, and VO2/metabolic effects.",
+      "expected_answer_keywords": [
+        "20 seconds all-out",
+        "10 seconds rest",
+        "8 reps per set",
+        "1\u20134 sets",
+        "3\u20135 minutes rest between sets",
+        "VO2 max increase 5\u201318%",
+        "enzymes",
+        "arterial stiffness reduction"
+      ],
+      "metadata": {
+        "cue": "exhausted on last rep"
+      }
+    },
+    {
+      "id": "q8",
+      "query": "How should I balance HIIT and steady work across the week to avoid overtraining?",
+      "relevant_document_ids": [
+        "eebec737-9cf9-4dc4-b3b9-18daf6e7feb7"
+      ],
+      "collection_name": "user_07c5cbca_strength_and_conditioning",
+      "query_type": "optimization",
+      "difficulty": "medium",
+      "description": "Weekly split guidance and 80/20 principle with recovery days.",
+      "expected_answer_keywords": [
+        "balance intensity and volume",
+        "80/20 low\u2013mod vs high intensity",
+        "follow hard days with easy",
+        "1\u20132 low/mod sessions + resistance"
+      ],
+      "metadata": {
+        "framework": "Levine & Gibala guidance"
+      }
+    },
+    {
+      "id": "q9",
+      "query": "What are practical heart-rate formulas and RPE/talk-test anchors to gauge intensity?",
+      "relevant_document_ids": [
+        "eebec737-9cf9-4dc4-b3b9-18daf6e7feb7"
+      ],
+      "collection_name": "user_07c5cbca_strength_and_conditioning",
+      "query_type": "factual",
+      "difficulty": "medium",
+      "description": "Checks HRmax formulas and zone cues including RPE and talk test.",
+      "expected_answer_keywords": [
+        "220\u2212age",
+        "211\u22120.64\u00d7age",
+        "208\u22120.7\u00d7age",
+        "\u00b110 bpm error",
+        "RPE 6\u201320",
+        "talk test cues",
+        "Zones 1\u20135"
+      ],
+      "metadata": {
+        "note": "individual variability emphasized"
+      }
+    },
+    {
+      "id": "q10",
+      "query": "What daily and per-meal protein targets support training, and does timing matter?",
+      "relevant_document_ids": [
+        "eebec737-9cf9-4dc4-b3b9-18daf6e7feb7"
+      ],
+      "collection_name": "user_07c5cbca_strength_and_conditioning",
+      "query_type": "comparison",
+      "difficulty": "medium",
+      "description": "Evaluates knowledge of g/kg/day ranges, the ~1.6 g/kg \u2018sweet spot\u2019, and timing vs total.",
+      "expected_answer_keywords": [
+        "0.8\u20131.2",
+        "1.2\u20131.6",
+        "1.6\u20132.2 g/kg/day",
+        "~1.6 g/kg sweet spot",
+        "timing secondary to total",
+        "20\u201340 g post-workout optional",
+        "20\u201330 g per meal",
+        "older adults 20\u201340 g"
+      ],
+      "metadata": {
+        "experts": [
+          "Phillips",
+          "Schoenfeld",
+          "van Loon"
+        ]
+      }
+    },
+    {
+      "id": "q11",
+      "query": "What strategies make strength training time-efficient without sacrificing results?",
+      "relevant_document_ids": [
+        "eebec737-9cf9-4dc4-b3b9-18daf6e7feb7"
+      ],
+      "collection_name": "user_07c5cbca_strength_and_conditioning",
+      "query_type": "optimization",
+      "difficulty": "medium",
+      "description": "Micro-dosing, shorter rests, supersets/drop sets, heavy loads, minimal warm-up.",
+      "expected_answer_keywords": [
+        "micro-dose",
+        "shorter rests 1\u20132 min",
+        "supersets",
+        "drop sets 20\u201325% load reductions",
+        "prioritize multi-joint",
+        "train heavy for fewer reps",
+        "skip static stretching"
+      ],
+      "metadata": {
+        "constraint": "maintain weekly volume"
+      }
+    },
+    {
+      "id": "q12",
+      "query": "How do sauna sessions complement training, and what protocol is suggested?",
+      "relevant_document_ids": [
+        "eebec737-9cf9-4dc4-b3b9-18daf6e7feb7"
+      ],
+      "collection_name": "user_07c5cbca_strength_and_conditioning",
+      "query_type": "factual",
+      "difficulty": "easy",
+      "description": "Asks for temperature, duration, frequency, and pairing with workouts.",
+      "expected_answer_keywords": [
+        "80\u201390\u00b0C",
+        "15\u201330 minutes",
+        "1\u20133\u00d7/week (up to 4\u20137\u00d7)",
+        "after training within 5\u201310 minutes",
+        "VO2/heat tolerance/recovery benefits"
+      ],
+      "metadata": {
+        "category": "recovery & adaptation"
+      }
+    }
+  ]
+}

@@ -8,7 +8,9 @@ from typing import List, Set
 import math
 
 
-def precision_at_k(retrieved_ids: List[str], relevant_ids: Set[str], k: int = 5) -> float:
+def precision_at_k(
+    retrieved_ids: List[str], relevant_ids: Set[str], k: int = 5
+) -> float:
     """
     Precision@K: What fraction of retrieved docs are relevant?
 
@@ -138,9 +140,7 @@ def mean_average_precision(retrieved_ids: List[str], relevant_ids: Set[str]) -> 
 
 
 def compute_relevance_at_positions(
-    retrieved_ids: List[str],
-    relevant_ids: Set[str],
-    k: int = 5
+    retrieved_ids: List[str], relevant_ids: Set[str], k: int = 5
 ) -> List[bool]:
     """
     Return boolean list indicating relevance at each position.
