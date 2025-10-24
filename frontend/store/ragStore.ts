@@ -76,12 +76,14 @@ interface RAGState {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Helper to get auth headers
-const getAuthHeaders = () => {
-  const token = useAuthStore.getState().accessToken;
-  return {
-    'Authorization': `Bearer ${token}`,
+const getAuthHeaders = (accessToken: string | null): HeadersInit => {
+  const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  return headers;
 };
 
 export const useRAGStore = create<RAGState>()(
@@ -100,8 +102,9 @@ export const useRAGStore = create<RAGState>()(
       loadKnowledgePools: async () => {
         set({ isLoading: true, error: null });
         try {
+          const accessToken = useAuthStore.getState().accessToken;
           const response = await fetch('/api/rag/knowledge-pools', {
-            headers: getAuthHeaders(),
+            headers: getAuthHeaders(accessToken),
           });
           if (!response.ok) {
             throw new Error('Failed to load knowledge pools');
@@ -119,9 +122,10 @@ export const useRAGStore = create<RAGState>()(
       createKnowledgePool: async (name: string, description?: string) => {
         set({ isLoading: true, error: null });
         try {
+          const accessToken = useAuthStore.getState().accessToken;
           const response = await fetch('/api/rag/knowledge-pools', {
             method: 'POST',
-            headers: getAuthHeaders(),
+            headers: getAuthHeaders(accessToken),
             body: JSON.stringify({ name, description }),
           });
 
@@ -148,9 +152,10 @@ export const useRAGStore = create<RAGState>()(
       deleteKnowledgePool: async (id: string) => {
         set({ isLoading: true, error: null });
         try {
+          const accessToken = useAuthStore.getState().accessToken;
           const response = await fetch(`/api/rag/knowledge-pools/${id}`, {
             method: 'DELETE',
-            headers: getAuthHeaders(),
+            headers: getAuthHeaders(accessToken),
           });
 
           if (!response.ok) {
@@ -204,8 +209,9 @@ export const useRAGStore = create<RAGState>()(
       loadDocuments: async (poolId: string) => {
         set({ isLoading: true, error: null });
         try {
+          const accessToken = useAuthStore.getState().accessToken;
           const response = await fetch(`/api/rag/knowledge-pools/${poolId}/documents`, {
-            headers: getAuthHeaders(),
+            headers: getAuthHeaders(accessToken),
           });
           if (!response.ok) {
             throw new Error('Failed to load documents');
@@ -268,8 +274,9 @@ export const useRAGStore = create<RAGState>()(
 
           // Poll for processing completion
           const pollInterval = setInterval(async () => {
+            const accessToken = useAuthStore.getState().accessToken;
             const docResponse = await fetch(`/api/rag/knowledge-pools/${poolId}/documents`, {
-              headers: getAuthHeaders(),
+              headers: getAuthHeaders(accessToken),
             });
             if (docResponse.ok) {
               const documents = await docResponse.json();
@@ -337,9 +344,10 @@ export const useRAGStore = create<RAGState>()(
       deleteDocument: async (documentId: string) => {
         set({ isLoading: true, error: null });
         try {
+          const accessToken = useAuthStore.getState().accessToken;
           const response = await fetch(`/api/rag/documents/${documentId}`, {
             method: 'DELETE',
-            headers: getAuthHeaders(),
+            headers: getAuthHeaders(accessToken),
           });
 
           if (!response.ok) {

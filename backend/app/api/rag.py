@@ -4,28 +4,35 @@ RAG API endpoints.
 Handles document upload, knowledge pool management, and semantic search.
 """
 
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional
-from uuid import UUID
+import logging
 import os
 import tempfile
+from typing import List
+from uuid import UUID
 
-from app.dependencies import get_db, get_current_active_user
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
+
+from app.dependencies import get_current_active_user, get_db
 from app.models.database import (
-    KnowledgePool,
     Document as DBDocument,
+)
+from app.models.database import (
     DocumentStatus,
+    KnowledgePool,
     User,
 )
 from app.models.schemas import (
-    RAGSearchRequest,
-    RAGSearchResponse,
-    RAGDocument,
+    DocumentResponse,
     DocumentUploadResponse,
     KnowledgePoolCreate,
     KnowledgePoolResponse,
+    RAGDocument,
+    RAGSearchRequest,
+    RAGSearchResponse,
 )
 from app.services.rag_service import RAGService
 
@@ -135,9 +142,9 @@ async def delete_knowledge_pool(
 
 @router.post("/upload", response_model=DocumentUploadResponse)
 async def upload_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    pool_id: UUID = ...,
-    background_tasks: BackgroundTasks = BackgroundTasks(),
+    pool_id: UUID = Form(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
@@ -241,6 +248,7 @@ async def process_document_background(
 
         except Exception as e:
             # Mark document as failed
+            logger.error(f"Failed to process document {document_id}: {e}")
             doc.status = DocumentStatus.FAILED
             doc.error_message = str(e)
             await db.commit()
@@ -248,6 +256,93 @@ async def process_document_background(
             # Clean up temporary file
             if os.path.exists(file_path):
                 os.remove(file_path)
+
+
+@router.get(
+    "/knowledge-pools/{pool_id}/documents", response_model=List[DocumentResponse]
+)
+async def list_documents(
+    pool_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    List all documents in a knowledge pool.
+    """
+
+    user_id = current_user.id
+
+    # Verify pool exists and belongs to user
+    result = await db.execute(
+        select(KnowledgePool).where(
+            KnowledgePool.id == pool_id,
+            KnowledgePool.user_id == user_id,
+        )
+    )
+    pool = result.scalar_one_or_none()
+
+    if not pool:
+        raise HTTPException(status_code=404, detail="Knowledge pool not found")
+
+    # Get all documents in the pool
+    result = await db.execute(
+        select(DBDocument)
+        .where(DBDocument.knowledge_pool_id == pool_id)
+        .order_by(DBDocument.created_at.desc())
+    )
+    documents = result.scalars().all()
+
+    return documents
+
+
+@router.delete("/documents/{document_id}")
+async def delete_document(
+    document_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Delete a document and its embeddings from the vector store.
+    """
+
+    user_id = current_user.id
+
+    # Get document and verify ownership through pool
+    result = await db.execute(
+        select(DBDocument)
+        .join(KnowledgePool)
+        .where(
+            DBDocument.id == document_id,
+            KnowledgePool.user_id == user_id,
+        )
+    )
+    document = result.scalar_one_or_none()
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Get the pool to get collection name
+    result = await db.execute(
+        select(KnowledgePool).where(KnowledgePool.id == document.knowledge_pool_id)
+    )
+    pool = result.scalar_one_or_none()
+
+    # Delete from vector store
+    if pool and document.status == DocumentStatus.COMPLETED:
+        try:
+            await rag_service.vector_store.delete_by_metadata(
+                collection_name=pool.collection_name,
+                filter_conditions={"document_id": str(document_id)},
+            )
+        except Exception as e:
+            # Log error but continue with database deletion
+            logger.error(f"Error deleting from vector store: {e}")
+
+    # Delete from database
+    await db.delete(document)
+    await db.commit()
+
+    return {"success": True, "message": "Document deleted successfully"}
 
 
 @router.post("/search", response_model=RAGSearchResponse)
