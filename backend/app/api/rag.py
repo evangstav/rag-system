@@ -13,7 +13,12 @@ import os
 import tempfile
 
 from app.dependencies import get_db, get_current_active_user
-from app.models.database import KnowledgePool, Document as DBDocument, DocumentStatus, User
+from app.models.database import (
+    KnowledgePool,
+    Document as DBDocument,
+    DocumentStatus,
+    User,
+)
 from app.models.schemas import (
     RAGSearchRequest,
     RAGSearchResponse,
@@ -30,7 +35,7 @@ router = APIRouter()
 rag_service = RAGService()
 
 
-@router.post("/pools", response_model=KnowledgePoolResponse, status_code=201)
+@router.post("/knowledge-pools", response_model=KnowledgePoolResponse, status_code=201)
 async def create_knowledge_pool(
     pool_data: KnowledgePoolCreate,
     db: AsyncSession = Depends(get_db),
@@ -46,7 +51,9 @@ async def create_knowledge_pool(
     user_id = current_user.id
 
     # Generate collection name from pool name
-    collection_name = f"user_{str(user_id)[:8]}_{pool_data.name.lower().replace(' ', '_')}"
+    collection_name = (
+        f"user_{str(user_id)[:8]}_{pool_data.name.lower().replace(' ', '_')}"
+    )
 
     # Check if pool already exists
     result = await db.execute(
@@ -72,7 +79,7 @@ async def create_knowledge_pool(
     return pool
 
 
-@router.get("/pools", response_model=List[KnowledgePoolResponse])
+@router.get("/knowledge-pools", response_model=List[KnowledgePoolResponse])
 async def list_knowledge_pools(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -91,7 +98,7 @@ async def list_knowledge_pools(
     return pools
 
 
-@router.delete("/pools/{pool_id}")
+@router.delete("/knowledge-pools/{pool_id}")
 async def delete_knowledge_pool(
     pool_id: UUID,
     db: AsyncSession = Depends(get_db),
