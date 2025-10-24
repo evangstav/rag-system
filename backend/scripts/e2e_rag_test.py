@@ -37,24 +37,26 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Optional, Dict, Any
-from datetime import datetime
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config import settings
 from app.services.rag_service import RAGService
+from app.services.rag.text_splitter import TokenAwareSplitter
 from app.evaluation.runner import EvaluationRunner
 from app.evaluation.loader import TestSuiteLoader
 from app.evaluation.adapters import BaselineRAGAdapter
-from app.evaluation.comparison import ResultsExporter
 from tests.utils.results_db import EvaluationResultsDB
 
 
 # Test configuration
 TEST_USER_ID = "test_user_00000000"
 TEST_COLLECTION_NAME = "test_rag_evaluation"
-DEFAULT_PDF_PATH = Path(__file__).parent.parent / "tests" / "data" / "How to Train Guide.pdf"
+TEST_DOCUMENT_ID = "00000000-0000-0000-0000-000000000001"  # Fixed ID for test document
+DEFAULT_PDF_PATH = (
+    Path(__file__).parent.parent / "tests" / "data" / "How to Train Guide.pdf"
+)
 DEFAULT_SUITE_PATH = Path(__file__).parent.parent / "tests" / "data" / "my_suite.json"
 
 
@@ -123,7 +125,9 @@ async def check_pdf_ingested(
         Tuple of (is_ingested, num_chunks)
     """
     try:
-        stats = await rag_service.vector_store.get_collection_stats(TEST_COLLECTION_NAME)
+        stats = await rag_service.vector_store.get_collection_stats(
+            TEST_COLLECTION_NAME
+        )
         num_chunks = stats.get("vectors_count", 0)
 
         if num_chunks > 0:
@@ -178,6 +182,10 @@ async def ingest_pdf(
     print(f"Splitting document...")
     chunks = rag_service.text_splitter.split_documents([document])
     print(f"Created {len(chunks)} chunks")
+
+    # Set consistent document_id on all chunks for test suite matching
+    for chunk in chunks:
+        chunk.metadata["document_id"] = TEST_DOCUMENT_ID
 
     # Generate embeddings
     print(f"Generating embeddings...")
@@ -323,7 +331,7 @@ async def run_test(args):
         sys.exit(1)
 
     # Initialize services
-    rag_service = RAGService()
+    rag_service = RAGService(text_splitter=TokenAwareSplitter())
 
     # Ensure test collection exists
     await ensure_test_collection(rag_service)
@@ -381,8 +389,8 @@ async def show_history(args):
         print(f"{'=' * 80}")
 
         for run in runs:
-            git_info = f"{run['git_hash'][:8]}" if run['git_hash'] else "N/A"
-            if run['git_dirty']:
+            git_info = f"{run['git_hash'][:8]}" if run["git_hash"] else "N/A"
+            if run["git_dirty"]:
                 git_info += " (dirty)"
 
             metrics = run["aggregate_metrics"]
@@ -390,9 +398,11 @@ async def show_history(args):
             print(f"Run #{run['id']} - {run['timestamp']}")
             print(f"  Git: {git_info}")
             print(f"  PDF: {run['pdf_filename']} ({run['num_chunks']} chunks)")
-            print(f"  Metrics: P@5={metrics['precision_at_k']:.3f} | "
-                  f"R@5={metrics['recall_at_k']:.3f} | "
-                  f"NDCG@5={metrics['ndcg_at_k']:.3f}")
+            print(
+                f"  Metrics: P@5={metrics['precision_at_k']:.3f} | "
+                f"R@5={metrics['recall_at_k']:.3f} | "
+                f"NDCG@5={metrics['ndcg_at_k']:.3f}"
+            )
             print()
 
 
@@ -412,8 +422,12 @@ async def compare_runs(args):
         run1 = comparison["run1"]
         run2 = comparison["run2"]
 
-        print(f"Run #{run1['id']}: {run1['timestamp']} (Git: {run1['git_hash'][:8] if run1['git_hash'] else 'N/A'})")
-        print(f"Run #{run2['id']}: {run2['timestamp']} (Git: {run2['git_hash'][:8] if run2['git_hash'] else 'N/A'})")
+        print(
+            f"Run #{run1['id']}: {run1['timestamp']} (Git: {run1['git_hash'][:8] if run1['git_hash'] else 'N/A'})"
+        )
+        print(
+            f"Run #{run2['id']}: {run2['timestamp']} (Git: {run2['git_hash'][:8] if run2['git_hash'] else 'N/A'})"
+        )
         print()
 
         print(f"{'Metric':<20} {'Baseline':<12} {'Current':<12} {'Diff':<12}")
@@ -428,7 +442,9 @@ async def compare_runs(args):
             else:
                 arrow = "↓"
 
-            print(f"{key:<20} {data['baseline']:<12.3f} {data['current']:<12.3f} {arrow} {diff_str:<10}")
+            print(
+                f"{key:<20} {data['baseline']:<12.3f} {data['current']:<12.3f} {arrow} {diff_str:<10}"
+            )
 
 
 async def clean_test_collection(args):
