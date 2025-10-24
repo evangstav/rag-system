@@ -10,11 +10,13 @@ import { useAuthStore } from '@/lib/auth-store';
 import { logout } from '@/lib/api-client';
 import { ConversationSidebar } from '@/components/ConversationSidebar';
 import { useConversationStore } from '@/store/conversationStore';
+import { useRAGStore } from '@/store/ragStore';
+import KnowledgePoolSelector from '@/components/KnowledgePoolSelector';
 
 function ChatContent() {
   const user = useAuthStore((state) => state.user);
   const accessToken = useAuthStore((state) => state.accessToken);
-  const [useRag, setUseRag] = useState(false);
+  const selectedPoolIds = useRAGStore((state) => state.selectedPoolIds);
   const [useScratchpad, setUseScratchpad] = useState(false);
   const [input, setInput] = useState('');
   const [showScratchpad, setShowScratchpad] = useState(true);
@@ -82,16 +84,6 @@ function ChatContent() {
         </Panel>
         <PanelResizeHandle className="w-1 bg-slate-700 hover:bg-violet-500 transition-colors" />
 
-        {/* Scratchpad Panel */}
-        {showScratchpad && (
-          <>
-            <Panel defaultSize={20} minSize={15} maxSize={35}>
-              <Scratchpad />
-            </Panel>
-            <PanelResizeHandle className="w-1 bg-slate-200 hover:bg-violet-400 transition-colors" />
-          </>
-        )}
-
         {/* Chat Panel */}
         <Panel defaultSize={60} minSize={40}>
           <div className="flex flex-col h-full bg-gradient-to-br from-slate-50 via-white to-slate-50">
@@ -149,21 +141,7 @@ function ChatContent() {
                       </span>
                     </button>
 
-                    <button
-                      onClick={() => setUseRag(!useRag)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${useRag
-                        ? 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-200'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${useRag ? 'bg-emerald-500' : 'bg-slate-400'
-                            }`}
-                        />
-                        RAG
-                      </span>
-                    </button>
+                    <KnowledgePoolSelector />
 
                     {/* User Menu */}
                     <div className="relative">
@@ -355,9 +333,9 @@ function ChatContent() {
                         {
                           body: {
                             conversationId,
-                            useRag,
+                            useRag: selectedPoolIds.length > 0,
                             useScratchpad,
-                            knowledgePoolIds: [],
+                            knowledgePoolIds: selectedPoolIds,
                           },
                         }
                       );
@@ -397,6 +375,16 @@ function ChatContent() {
             </div>
           </div>
         </Panel>
+
+        {/* Scratchpad Panel */}
+        {showScratchpad && (
+          <>
+            <PanelResizeHandle className="w-1 bg-slate-200 hover:bg-violet-400 transition-colors" />
+            <Panel defaultSize={20} minSize={15} maxSize={35}>
+              <Scratchpad />
+            </Panel>
+          </>
+        )}
       </PanelGroup>
     </div>
   );

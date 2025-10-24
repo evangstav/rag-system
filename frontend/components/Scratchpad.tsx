@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/lib/auth-store';
+import RAGManager from './RAGManager';
 
 interface Todo {
   id: string;
@@ -17,7 +18,7 @@ interface ScratchpadData {
 
 export function Scratchpad() {
   const accessToken = useAuthStore((state) => state.accessToken);
-  const [activeTab, setActiveTab] = useState<'todos' | 'notes' | 'journal'>(
+  const [activeTab, setActiveTab] = useState<'todos' | 'notes' | 'journal' | 'rag'>(
     'todos'
   );
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -146,6 +147,15 @@ export function Scratchpad() {
           >
             Journal
           </button>
+          <button
+            onClick={() => setActiveTab('rag')}
+            className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'rag'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+              }`}
+          >
+            RAG
+          </button>
         </div>
       </div>
 
@@ -161,7 +171,7 @@ export function Scratchpad() {
                 onChange={(e) => setNewTodoText(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addTodo()}
                 placeholder="Add a todo..."
-                className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                className="flex-1 px-3 py-2 text-sm text-slate-800 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               />
               <button
                 onClick={addTodo}
@@ -228,7 +238,7 @@ export function Scratchpad() {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Write your notes here..."
-              className="w-full h-[calc(100vh-300px)] px-4 py-3 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
+              className="w-full h-[calc(100vh-300px)] px-4 py-3 text-sm text-slate-800 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
             />
           </div>
         )}
@@ -247,8 +257,14 @@ export function Scratchpad() {
               value={journal}
               onChange={(e) => setJournal(e.target.value)}
               placeholder="What's on your mind today?"
-              className="w-full h-[calc(100vh-340px)] px-4 py-3 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
+              className="w-full h-[calc(100vh-340px)] px-4 py-3 text-sm text-slate-800 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
             />
+          </div>
+        )}
+
+        {activeTab === 'rag' && (
+          <div className="h-[calc(100vh-250px)]">
+            <RAGManager />
           </div>
         )}
       </div>
