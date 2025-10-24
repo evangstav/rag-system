@@ -23,7 +23,7 @@ function ChatContent() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { currentConversationId, createConversation } = useConversationStore();
+  const { currentConversationId, createConversation, loadConversations } = useConversationStore();
 
   const { messages, sendMessage, isLoading, setMessages } = useChat({
     transport: new TextStreamChatTransport({
@@ -32,6 +32,10 @@ function ChatContent() {
         Authorization: `Bearer ${useAuthStore.getState().accessToken}`,
       }),
     }),
+    onFinish: async () => {
+      // Reload conversations to pick up the newly generated title
+      await loadConversations();
+    },
   });
 
   // Load messages when conversation changes

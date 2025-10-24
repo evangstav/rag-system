@@ -4,8 +4,9 @@ import { useState } from 'react';
 import KnowledgePoolList from './KnowledgePoolList';
 import DocumentUpload from './DocumentUpload';
 import DocumentList from './DocumentList';
+import SearchInterface from './SearchInterface';
 
-type RAGTab = 'pools' | 'upload' | 'documents';
+type RAGTab = 'pools' | 'upload' | 'documents' | 'search';
 
 export default function RAGManager() {
   const [activeTab, setActiveTab] = useState<RAGTab>('pools');
@@ -14,6 +15,7 @@ export default function RAGManager() {
     { id: 'pools', label: 'Pools' },
     { id: 'upload', label: 'Upload' },
     { id: 'documents', label: 'Documents' },
+    { id: 'search', label: 'Search' },
   ];
 
   return (
@@ -40,6 +42,7 @@ export default function RAGManager() {
         {activeTab === 'pools' && <KnowledgePoolList />}
         {activeTab === 'upload' && <DocumentUpload />}
         {activeTab === 'documents' && <DocumentList />}
+        {activeTab === 'search' && <SearchInterface />}
       </div>
     </div>
   );

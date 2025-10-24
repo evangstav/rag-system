@@ -343,8 +343,25 @@ async def stream_chat(
             # Update conversation title if it's the first exchange
             # Check if title is None, 'None', or empty, and this is the first exchange (no history before this message)
             if (not conversation.title or conversation.title.strip() == "" or conversation.title == "None") and len(history_messages) == 0:
-                # Use first 50 chars of user query as title
-                conversation.title = user_query[:50] + ("..." if len(user_query) > 50 else "")
+                # Generate a concise title from the conversation
+                try:
+                    title_response = await llm_service.client.chat.completions.create(
+                        model=llm_service.model,
+                        messages=[
+                            {"role": "system", "content": "Generate a concise 3-5 word title for this conversation. Return only the title, no quotes or extra text."},
+                            {"role": "user", "content": user_query},
+                            {"role": "assistant", "content": response_text},
+                        ],
+                        max_tokens=50,
+                        temperature=0.7,
+                    )
+                    generated_title = title_response.choices[0].message.content.strip()
+                    # Fallback to first 50 chars if generation fails
+                    conversation.title = generated_title if generated_title else user_query[:50] + ("..." if len(user_query) > 50 else "")
+                except Exception as e:
+                    print(f"Error generating title: {e}")
+                    # Fallback to first 50 chars
+                    conversation.title = user_query[:50] + ("..." if len(user_query) > 50 else "")
 
             await db.commit()
 

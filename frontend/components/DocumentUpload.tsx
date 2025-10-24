@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { toast } from 'sonner';
 import { useRAGStore } from '@/store/ragStore';
 
 export default function DocumentUpload() {
@@ -12,7 +13,7 @@ export default function DocumentUpload() {
   const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     if (!selectedPoolId) {
-      alert('Please select a knowledge pool first');
+      toast.error('Please select a knowledge pool first');
       return;
     }
 

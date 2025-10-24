@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/auth-store';
 
 // Type definitions matching backend schemas
@@ -139,12 +140,15 @@ export const useRAGStore = create<RAGState>()(
             isLoading: false,
           }));
 
+          toast.success('Knowledge pool created successfully');
           return newPool;
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           set({
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: errorMessage,
             isLoading: false
           });
+          toast.error(`Failed to create pool: ${errorMessage}`);
           return null;
         }
       },
@@ -169,12 +173,15 @@ export const useRAGStore = create<RAGState>()(
             isLoading: false,
           }));
 
+          toast.success('Knowledge pool deleted successfully');
           return true;
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           set({
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: errorMessage,
             isLoading: false
           });
+          toast.error(`Failed to delete pool: ${errorMessage}`);
           return false;
         }
       },
@@ -296,6 +303,7 @@ export const useRAGStore = create<RAGState>()(
                     documents: state.currentPoolId === poolId ? documents : state.documents,
                   }));
                   clearInterval(pollInterval);
+                  toast.success(`${file.name} uploaded and processed successfully`);
 
                   // Remove upload status after 3 seconds
                   setTimeout(() => {
@@ -305,6 +313,7 @@ export const useRAGStore = create<RAGState>()(
                     });
                   }, 3000);
                 } else if (uploadedDoc.status === 'failed') {
+                  const errorMsg = uploadedDoc.error_message || 'Processing failed';
                   set(state => ({
                     uploads: {
                       ...state.uploads,
@@ -312,12 +321,13 @@ export const useRAGStore = create<RAGState>()(
                         filename: file.name,
                         progress: 100,
                         status: 'failed',
-                        error: uploadedDoc.error_message || 'Processing failed',
+                        error: errorMsg,
                       },
                     },
                     documents: state.currentPoolId === poolId ? documents : state.documents,
                   }));
                   clearInterval(pollInterval);
+                  toast.error(`Failed to process ${file.name}: ${errorMsg}`);
                 }
               }
             }
@@ -327,6 +337,7 @@ export const useRAGStore = create<RAGState>()(
           setTimeout(() => clearInterval(pollInterval), 5 * 60 * 1000);
 
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Upload failed';
           set(state => ({
             uploads: {
               ...state.uploads,
@@ -334,10 +345,11 @@ export const useRAGStore = create<RAGState>()(
                 filename: file.name,
                 progress: 0,
                 status: 'failed',
-                error: error instanceof Error ? error.message : 'Upload failed',
+                error: errorMessage,
               },
             },
           }));
+          toast.error(`Failed to upload ${file.name}: ${errorMessage}`);
         }
       },
 
@@ -359,12 +371,15 @@ export const useRAGStore = create<RAGState>()(
             isLoading: false,
           }));
 
+          toast.success('Document deleted successfully');
           return true;
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           set({
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: errorMessage,
             isLoading: false
           });
+          toast.error(`Failed to delete document: ${errorMessage}`);
           return false;
         }
       },
