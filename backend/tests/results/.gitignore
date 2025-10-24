@@ -1,0 +1,11 @@
+# Ignore SQLite database and temporary files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Keep schema file
+!schema.sql
+
+# Keep this .gitignore
+!.gitignore

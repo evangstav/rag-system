@@ -1,0 +1,11 @@
+# Ignore PDF files (can be large)
+*.pdf
+
+# Keep JSON test suites
+!*.json
+
+# Keep README
+!README.md
+
+# Keep this .gitignore
+!.gitignore
