@@ -108,12 +108,50 @@ class QdrantVectorStore:
 
         Returns:
             List of IDs for the inserted documents
+
+        Raises:
+            ValueError: If inputs are invalid (empty, mismatched sizes, invalid dimensions)
         """
+        # Validate collection name
+        if not collection_name or not collection_name.strip():
+            raise ValueError("Collection name cannot be empty")
+
+        # Validate documents and vectors are not empty
+        if not documents:
+            raise ValueError("Documents list cannot be empty")
+
+        if not vectors:
+            raise ValueError("Vectors list cannot be empty")
+
+        # Validate counts match
         if len(documents) != len(vectors):
             raise ValueError(
                 f"Number of documents ({len(documents)}) must match "
                 f"number of vectors ({len(vectors)})"
             )
+
+        # Validate vector dimensions are consistent
+        if vectors:
+            import math
+
+            expected_dim = len(vectors[0])
+
+            if expected_dim == 0:
+                raise ValueError("Vectors cannot be empty (0 dimensions)")
+
+            for i, vec in enumerate(vectors):
+                if len(vec) != expected_dim:
+                    raise ValueError(
+                        f"Vector {i} has inconsistent dimension: "
+                        f"{len(vec)} != {expected_dim}"
+                    )
+
+                # Check for NaN or Inf values
+                if any(math.isnan(v) or math.isinf(v) for v in vec):
+                    raise ValueError(
+                        f"Vector {i} contains NaN or Inf values (document: "
+                        f"{documents[i].content[:50]}...)"
+                    )
 
         points = []
         point_ids = []
@@ -210,7 +248,9 @@ class QdrantVectorStore:
             chunk_index = payload.get("chunk_index", 0)
 
             # Remove content and chunk_index from metadata to avoid duplication
-            metadata = {k: v for k, v in payload.items() if k not in ["content", "chunk_index"]}
+            metadata = {
+                k: v for k, v in payload.items() if k not in ["content", "chunk_index"]
+            }
 
             result = SearchResult(
                 content=content,
@@ -274,8 +314,12 @@ class QdrantVectorStore:
             "name": collection_name,
             "vectors_count": info.vectors_count or 0,
             "points_count": info.points_count or 0,
-            "dimensions": info.config.params.vectors.size if info.config.params.vectors else 0,
-            "distance": info.config.params.vectors.distance.value if info.config.params.vectors else "unknown",
+            "dimensions": info.config.params.vectors.size
+            if info.config.params.vectors
+            else 0,
+            "distance": info.config.params.vectors.distance.value
+            if info.config.params.vectors
+            else "unknown",
         }
 
     async def collection_exists(self, collection_name: str) -> bool:

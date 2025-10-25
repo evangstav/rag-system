@@ -3,3 +3,9 @@ __pycache__
 .venv/
 node_modules/
 .next/
+
+# MCP server config
+.serena/
+
+# Evaluation results (generated at runtime)
+backend/results/

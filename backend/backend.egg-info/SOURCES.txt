@@ -7,8 +7,16 @@ app/dependencies.py
 app/main.py
 app/api/auth.py
 app/api/chat.py
+app/api/conversations.py
 app/api/rag.py
 app/api/scratchpad.py
+app/evaluation/__init__.py
+app/evaluation/adapters.py
+app/evaluation/comparison.py
+app/evaluation/loader.py
+app/evaluation/metrics.py
+app/evaluation/protocols.py
+app/evaluation/runner.py
 app/models/__init__.py
 app/models/database.py
 app/models/schemas.py

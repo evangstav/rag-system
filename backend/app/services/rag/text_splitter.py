@@ -5,14 +5,16 @@ Smart text splitter that respects sentence boundaries, markdown structure,
 code blocks, and other semantic boundaries.
 """
 
-from typing import List, Optional, Dict, Any
 import re
+from typing import Any, Dict, List, Optional
+
+import tiktoken
 
 from app.config import settings
-from app.services.rag.protocols import Document, DocumentChunk
+from app.services.rag.protocols import Document, DocumentChunk, TextSplitter
 
 
-class SmartTextSplitter:
+class SmartTextSplitter(TextSplitter):
     """
     Content-aware text splitter that respects semantic boundaries.
 
@@ -359,3 +361,239 @@ class MarkdownAwareTextSplitter(SmartTextSplitter):
             text_lines.append("<<TABLE>>")
 
         return tables, "\n".join(text_lines)
+
+
+class TokenAwareSplitter(SmartTextSplitter):
+    """
+    Token-based text splitter using tiktoken for accurate token counting.
+    Uses same tokenizer as embedding model to ensure chunks fit in context windows.
+
+    This splitter uses token-based sizing to ensure chunks don't exceed model limits,
+    while still respecting semantic boundaries (sentences, paragraphs, etc.).
+    """
+
+    def __init__(
+        self,
+        chunk_size_tokens: int | None = None,
+        chunk_overlap_tokens: int | None = None,
+        encoding_name: str | None = None,
+        separators: List[str] | None = None,
+    ):
+        """
+        Initialize token-aware text splitter.
+
+        Args:
+            chunk_size_tokens: Target chunk size in tokens (default from settings)
+            chunk_overlap_tokens: Overlap between chunks in tokens (default from settings)
+            encoding_name: Tiktoken encoding name (default from settings)
+            separators: List of separators to try in order (default: markdown-aware)
+        """
+        self._chunk_size_tokens = chunk_size_tokens or settings.chunk_size_tokens
+        self._chunk_overlap_tokens = (
+            chunk_overlap_tokens or settings.chunk_overlap_tokens
+        )
+        encoding_name = encoding_name or settings.tokenizer
+        self.tokenizer = tiktoken.get_encoding(encoding_name)
+
+        # Cache for token counts to avoid redundant encoding
+        self._token_cache: Dict[str, int] = {}
+
+        # Convert token sizes to approximate character sizes for parent class
+        # Use a more conservative estimate to avoid oversizing
+        chars_per_token = 4  # Rough estimate for English
+        chunk_size_chars = self._chunk_size_tokens * chars_per_token
+        chunk_overlap_chars = self._chunk_overlap_tokens * chars_per_token
+
+        super().__init__(
+            chunk_size=chunk_size_chars,
+            chunk_overlap=chunk_overlap_chars,
+            separators=separators,
+        )
+
+    def _count_tokens(self, text: str) -> int:
+        """
+        Count tokens in text with caching to avoid redundant encoding.
+
+        Args:
+            text: Text to count tokens for
+
+        Returns:
+            Number of tokens
+        """
+        if text in self._token_cache:
+            return self._token_cache[text]
+
+        token_count = len(self.tokenizer.encode(text))
+        self._token_cache[text] = token_count
+        return token_count
+
+    def split_text(
+        self,
+        text: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> List[DocumentChunk]:
+        """
+        Split text into token-limited chunks.
+
+        Args:
+            text: The text to split
+            metadata: Optional metadata to attach to each chunk
+
+        Returns:
+            List of document chunks with token counts in metadata
+        """
+        if not text.strip():
+            return []
+
+        metadata = metadata or {}
+
+        # Clear token cache for new split operation
+        self._token_cache.clear()
+
+        # Actually perform the splitting using token-aware logic
+        chunks_text = self._split_with_context_awareness(text, self.separators)
+
+        # Convert text chunks to DocumentChunk objects with token metadata
+        chunks: List[DocumentChunk] = []
+        for i, chunk_text in enumerate(chunks_text):
+            token_count = self._count_tokens(chunk_text)
+            chunk_metadata = metadata.copy()
+            chunk_metadata["token_count"] = token_count
+
+            chunk = DocumentChunk(
+                content=chunk_text,
+                metadata=chunk_metadata,
+                chunk_index=i,
+            )
+
+            chunks.append(chunk)
+
+        return chunks
+
+    def _split_with_context_awareness(
+        self, text: str, separators: List[str]
+    ) -> List[str]:
+        """
+        Split text using hierarchical separators with token counting.
+
+        Args:
+            text: Text to split
+            separators: List of separators to try
+
+        Returns:
+            List of text chunks
+        """
+        # If text fits in one chunk, return it
+        if self._count_tokens(text) <= self._chunk_size_tokens:
+            return [text] if text.strip() else []
+
+        # Try each separator in order
+        for i, sep in enumerate(separators):
+            if sep == "":
+                # Last resort: split by tokens directly
+                return self._split_by_tokens(text)
+
+            # Split by current separator
+            splits = text.split(sep)
+            splits = [s for s in splits if s.strip()]
+
+            if len(splits) <= 1:
+                continue
+
+            # Merge splits into token-limited chunks
+            chunks = []
+            current_chunk = []
+            current_token_count = 0
+
+            for split in splits:
+                split_token_count = self._count_tokens(split)
+
+                # If single split exceeds limit, recursively split it
+                if split_token_count > self._chunk_size_tokens:
+                    if current_chunk:
+                        chunks.append(sep.join(current_chunk))
+                        current_chunk = []
+                        current_token_count = 0
+
+                    sub_chunks = self._split_with_context_awareness(
+                        split, separators[i + 1 :]
+                    )
+                    chunks.extend(sub_chunks)
+                    continue
+
+                # Check if adding this split would exceed chunk size
+                if (
+                    current_token_count + split_token_count > self._chunk_size_tokens
+                    and current_chunk
+                ):
+                    # Save current chunk
+                    chunks.append(sep.join(current_chunk))
+
+                    # Build overlap from previous splits
+                    overlap_splits = []
+                    overlap_token_count = 0
+                    for prev_split in reversed(current_chunk):
+                        prev_token_count = self._count_tokens(prev_split)
+                        overlap_token_count += prev_token_count
+                        overlap_splits.insert(0, prev_split)
+                        if overlap_token_count >= self._chunk_overlap_tokens:
+                            break
+
+                    current_chunk = overlap_splits
+                    current_token_count = sum(
+                        self._count_tokens(s) for s in current_chunk
+                    )
+
+                # Add split to current chunk
+                current_chunk.append(split)
+                current_token_count += split_token_count
+
+            # Add final chunk
+            if current_chunk:
+                chunks.append(sep.join(current_chunk))
+
+            return chunks
+
+        # If no separator worked, split by tokens
+        return self._split_by_tokens(text)
+
+    def _split_by_tokens(self, text: str) -> List[str]:
+        """
+        Split text by tokens directly (last resort).
+
+        This method is used when no suitable separator can split the text
+        while respecting token limits. It tokenizes the text and splits
+        on exact token boundaries.
+
+        Args:
+            text: Text to split
+
+        Returns:
+            List of text chunks
+        """
+        tokens = self.tokenizer.encode(text)
+        chunks = []
+
+        start = 0
+        while start < len(tokens):
+            end = start + self._chunk_size_tokens
+            chunk_tokens = tokens[start:end]
+            chunk_text = self.tokenizer.decode(chunk_tokens)
+
+            if chunk_text.strip():
+                chunks.append(chunk_text.strip())
+
+            # Move start forward with overlap
+            start = end - self._chunk_overlap_tokens if end < len(tokens) else end
+
+        return chunks
+
+    @property
+    def chunk_size(self) -> int:
+        """Get chunk size in tokens"""
+        return self._chunk_size_tokens
+
+    @property
+    def chunk_overlap(self) -> int:
+        """Get chunk overlap size in tokens"""
+        return self._chunk_overlap_tokens

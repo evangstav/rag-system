@@ -1,11 +1,13 @@
 # PR #1: Wire Context Injection into Chat
 
 ## Summary
+
 This PR implements **end-to-end context injection** for RAG and scratchpad features. The UI toggles now actually work by injecting retrieved knowledge and user notes into the LLM context.
 
 ## Changes Made
 
 ### Backend (`backend/app/api/chat.py`)
+
 **Complete refactor of chat endpoint with:**
 
 1. **Scratchpad Context Retrieval** (`get_scratchpad_context()`)
@@ -34,6 +36,7 @@ This PR implements **end-to-end context injection** for RAG and scratchpad featu
    - Streams response with metadata events
 
 **Key Features Added:**
+
 - ✅ Conversation persistence (saved to DB)
 - ✅ Message history support
 - ✅ Context injection for RAG
@@ -42,6 +45,7 @@ This PR implements **end-to-end context injection** for RAG and scratchpad featu
 - ✅ Metadata tracking (sources, context info)
 
 ### Frontend (`frontend/app/api/chat/route.ts`)
+
 **Complete rewrite to proxy to backend:**
 
 1. **Backend Proxy Architecture**
@@ -57,6 +61,7 @@ This PR implements **end-to-end context injection** for RAG and scratchpad featu
    - Maintains streaming UX
 
 **Benefits:**
+
 - ✅ All logic centralized in backend (single source of truth)
 - ✅ Database persistence works correctly
 - ✅ RAG search happens server-side (secure)
@@ -65,18 +70,21 @@ This PR implements **end-to-end context injection** for RAG and scratchpad featu
 ### Configuration Files
 
 **Backend Environment** (`.env.example`)
+
 - OpenAI API configuration
 - Database connection
 - Qdrant vector store settings
 - RAG parameters (chunk size, overlap, embedding model)
 
 **Frontend Environment** (`.env.local.example`)
+
 - Backend API URL configuration
 - Easy production deployment
 
 ## Testing Instructions
 
 ### 1. Setup Environment
+
 ```bash
 # Backend
 cd backend
@@ -90,6 +98,7 @@ cp .env.local.example .env.local
 ```
 
 ### 2. Start Services
+
 ```bash
 # Terminal 1: Start infrastructure
 docker-compose up -d
@@ -106,7 +115,7 @@ npm run dev
 
 ### 3. Test Scratchpad Context Injection
 
-1. Open http://localhost:3000
+1. Open <http://localhost:3000>
 2. Add todos in scratchpad: "Buy groceries", "Finish RAG system"
 3. Add notes: "I prefer Python for backend development"
 4. Enable the "Scratchpad" toggle (purple pill in header)
@@ -190,6 +199,7 @@ Display in frontend
 ### Database Schema Usage
 
 **New tables utilized:**
+
 - `conversations` - Stores chat sessions with settings
 - `messages` - Stores all messages with metadata
 - `scratchpad_entries` - Source for scratchpad context
@@ -199,6 +209,7 @@ Display in frontend
 ### RAG Search Implementation
 
 Uses the existing `RAGService.search_multiple_pools()`:
+
 1. Embeds user query with OpenAI
 2. Performs cosine similarity search in Qdrant
 3. Returns top K chunks with scores
@@ -235,6 +246,7 @@ Uses the existing `RAGService.search_multiple_pools()`:
 **No database migrations needed** - Tables already exist from previous commits.
 
 If starting fresh:
+
 ```bash
 cd backend
 alembic upgrade head  # Once migrations are added in PR #2
@@ -243,6 +255,7 @@ alembic upgrade head  # Once migrations are added in PR #2
 ## Breaking Changes
 
 ⚠️ **Frontend API route completely changed:**
+
 - Old: Called OpenAI directly
 - New: Proxies to FastAPI backend
 
@@ -261,6 +274,7 @@ PR_1_CONTEXT_INJECTION.md                 (this file)
 ## Next Steps
 
 **Recommended follow-up PRs:**
+
 1. **PR #2: Database Migrations** - Set up Alembic properly
 2. **PR #3: JWT Authentication** - Replace DEFAULT_USER_ID
 3. **PR #4: Knowledge Pool UI** - Let users create pools & upload docs visually
