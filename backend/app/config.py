@@ -43,12 +43,28 @@ class Settings(BaseSettings):
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     jwt_expire_minutes: int = Field(default=30, alias="JWT_EXPIRE_MINUTES")
 
-    # RAG settings
+    # RAG settings - Embedding
     embedding_model: str = Field(default="text-embedding-3-small", alias="EMBEDDING_MODEL")
     embedding_dimensions: int = Field(default=1536, alias="EMBEDDING_DIMENSIONS")
+
+    # RAG settings - Chunking (character-based, legacy)
     chunk_size: int = Field(default=1000, alias="CHUNK_SIZE")
     chunk_overlap: int = Field(default=200, alias="CHUNK_OVERLAP")
+
+    # RAG settings - Chunking (token-based, recommended)
+    chunk_size_tokens: int = Field(default=512, alias="CHUNK_SIZE_TOKENS")
+    chunk_overlap_tokens: int = Field(default=64, alias="CHUNK_OVERLAP_TOKENS")
+    tokenizer: str = Field(default="cl100k_base", alias="TOKENIZER")
+
+    # RAG settings - Retrieval
     max_rag_results: int = Field(default=5, alias="MAX_RAG_RESULTS")
+
+    # RAG settings - Hybrid Search
+    enable_hybrid_search: bool = Field(default=False, alias="ENABLE_HYBRID_SEARCH")
+    hybrid_search_semantic_weight: float = Field(default=0.5, alias="HYBRID_SEARCH_SEMANTIC_WEIGHT")
+    hybrid_search_keyword_weight: float = Field(default=0.5, alias="HYBRID_SEARCH_KEYWORD_WEIGHT")
+    hybrid_search_rrf_k: int = Field(default=60, alias="HYBRID_SEARCH_RRF_K")
+    hybrid_search_retrieval_k: int = Field(default=20, alias="HYBRID_SEARCH_RETRIEVAL_K")
 
     # LLM settings
     default_llm_model: str = Field(default="gpt-4-turbo-preview", alias="DEFAULT_LLM_MODEL")
