@@ -5,7 +5,7 @@ Loads configuration from environment variables and .env file.
 """
 
 from typing import List
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -79,6 +79,40 @@ class Settings(BaseSettings):
     )
     max_tokens: int = Field(default=4000, alias="MAX_TOKENS")
     temperature: float = Field(default=0.7, alias="TEMPERATURE")
+
+    # Validators
+
+    @field_validator("hybrid_search_semantic_weight", "hybrid_search_keyword_weight")
+    @classmethod
+    def validate_weight_range(cls, v: float, info) -> float:
+        """Ensure hybrid search weights are between 0 and 1."""
+        if not 0 <= v <= 1:
+            raise ValueError(
+                f"{info.field_name} must be between 0 and 1, got {v}"
+            )
+        return v
+
+    @field_validator("hybrid_search_keyword_weight")
+    @classmethod
+    def validate_weights_sum(cls, v: float, info) -> float:
+        """
+        Warn if semantic + keyword weights don't sum to 1.0.
+
+        Note: This is a soft warning - RRF will still work with any weights,
+        but weights summing to 1.0 are easier to interpret.
+        """
+        # Only validate if semantic_weight has already been set
+        if hasattr(info.data, "hybrid_search_semantic_weight"):
+            semantic_weight = info.data.get("hybrid_search_semantic_weight", 0.5)
+            total = semantic_weight + v
+            if not (0.99 <= total <= 1.01):  # Allow small floating point errors
+                import warnings
+                warnings.warn(
+                    f"Hybrid search weights sum to {total:.2f} instead of 1.0. "
+                    f"This may make weight interpretation less intuitive. "
+                    f"(semantic={semantic_weight}, keyword={v})"
+                )
+        return v
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"

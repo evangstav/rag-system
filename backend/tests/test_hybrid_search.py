@@ -5,10 +5,12 @@ Tests cover:
 - BM25 indexing and search
 - Reciprocal Rank Fusion
 - Hybrid search integration with RAGService
+- Configuration validation
 """
 
 import pytest
 from typing import List, Dict, Any
+from pydantic import ValidationError
 
 from app.services.rag.protocols import DocumentChunk, SearchResult
 from app.services.rag.bm25_index import BM25Index
@@ -444,3 +446,121 @@ class TestEdgeCases:
 
         # Should still find Python-related documents
         assert len(results) > 0
+
+
+# Configuration Validation Tests
+
+
+class TestConfigurationValidation:
+    """Test configuration validation for hybrid search weights."""
+
+    def test_valid_weights(self):
+        """Test that valid weights are accepted."""
+        from app.config import Settings
+
+        # Valid: both weights between 0 and 1
+        settings = Settings(
+            OPENAI_API_KEY="test-key",
+            HYBRID_SEARCH_SEMANTIC_WEIGHT=0.5,
+            HYBRID_SEARCH_KEYWORD_WEIGHT=0.5,
+        )
+        assert settings.hybrid_search_semantic_weight == 0.5
+        assert settings.hybrid_search_keyword_weight == 0.5
+
+    def test_invalid_semantic_weight_negative(self):
+        """Test that negative semantic weight is rejected."""
+        from app.config import Settings
+
+        with pytest.raises(ValidationError) as exc_info:
+            Settings(
+                OPENAI_API_KEY="test-key",
+                HYBRID_SEARCH_SEMANTIC_WEIGHT=-0.1,
+                HYBRID_SEARCH_KEYWORD_WEIGHT=0.5,
+            )
+
+        assert "hybrid_search_semantic_weight" in str(exc_info.value)
+        assert "must be between 0 and 1" in str(exc_info.value)
+
+    def test_invalid_semantic_weight_too_high(self):
+        """Test that semantic weight > 1 is rejected."""
+        from app.config import Settings
+
+        with pytest.raises(ValidationError) as exc_info:
+            Settings(
+                OPENAI_API_KEY="test-key",
+                HYBRID_SEARCH_SEMANTIC_WEIGHT=1.5,
+                HYBRID_SEARCH_KEYWORD_WEIGHT=0.5,
+            )
+
+        assert "hybrid_search_semantic_weight" in str(exc_info.value)
+        assert "must be between 0 and 1" in str(exc_info.value)
+
+    def test_invalid_keyword_weight_negative(self):
+        """Test that negative keyword weight is rejected."""
+        from app.config import Settings
+
+        with pytest.raises(ValidationError) as exc_info:
+            Settings(
+                OPENAI_API_KEY="test-key",
+                HYBRID_SEARCH_SEMANTIC_WEIGHT=0.5,
+                HYBRID_SEARCH_KEYWORD_WEIGHT=-0.2,
+            )
+
+        assert "hybrid_search_keyword_weight" in str(exc_info.value)
+        assert "must be between 0 and 1" in str(exc_info.value)
+
+    def test_invalid_keyword_weight_too_high(self):
+        """Test that keyword weight > 1 is rejected."""
+        from app.config import Settings
+
+        with pytest.raises(ValidationError) as exc_info:
+            Settings(
+                OPENAI_API_KEY="test-key",
+                HYBRID_SEARCH_SEMANTIC_WEIGHT=0.5,
+                HYBRID_SEARCH_KEYWORD_WEIGHT=2.0,
+            )
+
+        assert "hybrid_search_keyword_weight" in str(exc_info.value)
+        assert "must be between 0 and 1" in str(exc_info.value)
+
+    def test_boundary_values(self):
+        """Test that boundary values (0 and 1) are accepted."""
+        from app.config import Settings
+
+        # All semantic (keyword = 0)
+        settings = Settings(
+            OPENAI_API_KEY="test-key",
+            HYBRID_SEARCH_SEMANTIC_WEIGHT=1.0,
+            HYBRID_SEARCH_KEYWORD_WEIGHT=0.0,
+        )
+        assert settings.hybrid_search_semantic_weight == 1.0
+        assert settings.hybrid_search_keyword_weight == 0.0
+
+        # All keyword (semantic = 0)
+        settings = Settings(
+            OPENAI_API_KEY="test-key",
+            HYBRID_SEARCH_SEMANTIC_WEIGHT=0.0,
+            HYBRID_SEARCH_KEYWORD_WEIGHT=1.0,
+        )
+        assert settings.hybrid_search_semantic_weight == 0.0
+        assert settings.hybrid_search_keyword_weight == 1.0
+
+    def test_weights_sum_warning(self):
+        """Test that warning is issued when weights don't sum to 1.0."""
+        from app.config import Settings
+        import warnings
+
+        # Weights that don't sum to 1.0 should warn
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+
+            settings = Settings(
+                OPENAI_API_KEY="test-key",
+                HYBRID_SEARCH_SEMANTIC_WEIGHT=0.3,
+                HYBRID_SEARCH_KEYWORD_WEIGHT=0.3,  # Sum = 0.6
+            )
+
+            # Check that a warning was issued
+            assert len(w) == 1
+            assert "sum to" in str(w[0].message)
+            assert "0.60" in str(w[0].message)
