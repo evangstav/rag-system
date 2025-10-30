@@ -5,7 +5,7 @@ BM25 (Best Match 25) is a probabilistic ranking function used for keyword matchi
 It complements semantic search by capturing exact term matches that embeddings might miss.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 import re
 from collections import defaultdict
 from rank_bm25 import BM25Okapi
