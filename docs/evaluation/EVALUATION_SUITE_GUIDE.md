@@ -599,6 +599,6 @@ asyncio.run(check())
 
 ## 📖 Additional Resources
 
-- [RAG_IMPROVEMENTS.md](./RAG_IMPROVEMENTS.md) - Detailed improvement recommendations
-- [COMPLETE_DEVELOPMENT_GUIDE.md](./COMPLETE_DEVELOPMENT_GUIDE.md) - Full system architecture
-- [PROJECT_STATUS.md](./PROJECT_STATUS.md) - Current implementation status
+- [RAG_IMPROVEMENTS.md](../reference/RAG_IMPROVEMENTS.md) - Detailed improvement recommendations
+- [COMPLETE_DEVELOPMENT_GUIDE.md](../development/COMPLETE_DEVELOPMENT_GUIDE.md) - Full system architecture
+- [PROJECT_STATUS.md](../status/PROJECT_STATUS.md) - Current implementation status
