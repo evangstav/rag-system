@@ -324,11 +324,11 @@ These can be done immediately for quick improvements:
 ## 🎓 Learning Resources
 
 ### **For Contributors**
-- [CLAUDE.md](./CLAUDE.md) - Project overview and conventions
-- [COMPLETE_DEVELOPMENT_GUIDE.md](./COMPLETE_DEVELOPMENT_GUIDE.md) - Full architecture
-- [QUICK_START_GUIDE.md](./QUICK_START_GUIDE.md) - 2-hour MVP setup
-- [Backend README](./backend/README.md) - Backend setup
-- [Frontend README](./frontend/README.md) - Frontend setup
+- [CLAUDE.md](../../CLAUDE.md) - Project overview and conventions
+- [COMPLETE_DEVELOPMENT_GUIDE.md](../development/COMPLETE_DEVELOPMENT_GUIDE.md) - Full architecture
+- [QUICK_START_GUIDE.md](../guides/QUICK_START_GUIDE.md) - 2-hour MVP setup
+- [Backend README](../../backend/README.md) - Backend setup
+- [Frontend README](../../frontend/README.md) - Frontend setup
 
 ---
 

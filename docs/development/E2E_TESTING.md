@@ -5,6 +5,7 @@ Automated testing framework for evaluating RAG (Retrieval-Augmented Generation) 
 ## Overview
 
 This system provides:
+
 - **Automated PDF ingestion** into a dedicated test collection
 - **Evaluation suite** execution with standard IR metrics
 - **SQLite tracking** of all test runs with git correlation
@@ -49,6 +50,7 @@ make test-rag
 ```
 
 **Output:**
+
 ```
 Creating test collection: test_rag_evaluation
 Loading PDF: How to Train Guide.pdf
@@ -83,6 +85,7 @@ COMPARISON: Run #0 vs Run #1
 ## Commands
 
 ### Run Test
+
 ```bash
 # Default (uses tests/data/How to Train Guide.pdf)
 make test-rag
@@ -98,6 +101,7 @@ make test-rag K=10
 ```
 
 ### View History
+
 ```bash
 # Show last 10 runs
 make test-rag-history
@@ -112,6 +116,7 @@ make test-rag-history
 ```
 
 ### Compare Runs
+
 ```bash
 # Compare two specific runs
 make test-rag-compare RUNS='4 5'
@@ -125,6 +130,7 @@ make test-rag-compare RUNS='4 5'
 ```
 
 ### Clean Up
+
 ```bash
 # Delete test collection from Qdrant
 make test-rag-clean
@@ -181,6 +187,7 @@ with EvaluationResultsDB() as db:
 ## Metrics Tracked
 
 ### Aggregate Metrics
+
 - **Precision@K**: Fraction of retrieved docs that are relevant
 - **Recall@K**: Fraction of relevant docs that were retrieved
 - **MRR**: Mean Reciprocal Rank of first relevant doc
@@ -189,10 +196,12 @@ with EvaluationResultsDB() as db:
 - **Latency**: Query response time (avg, p50, p95)
 
 ### Breakdowns
+
 - **By Query Type**: factual, technical, procedural, optimization, etc.
 - **By Difficulty**: easy, medium, hard
 
 ### Per-Query Results
+
 - Individual metrics for each test query
 - Retrieved documents
 - Latency per query
@@ -215,6 +224,7 @@ evaluation_runs:
 ## Typical Workflow
 
 ### 1. Baseline
+
 ```bash
 # Establish baseline on main branch
 git checkout main
@@ -223,6 +233,7 @@ make test-rag
 ```
 
 ### 2. Experiment
+
 ```bash
 # Make changes (e.g., adjust chunk size in config.py)
 vim app/config.py  # Change CHUNK_SIZE from 1000 to 500
@@ -233,6 +244,7 @@ make test-rag-force
 ```
 
 ### 3. Compare
+
 ```bash
 # Compare the two runs
 make test-rag-compare RUNS='1 2'
@@ -244,6 +256,7 @@ make test-rag-compare RUNS='1 2'
 ```
 
 ### 4. Commit
+
 ```bash
 # If results improved, commit the change
 git add app/config.py
@@ -262,27 +275,35 @@ git commit -m "Reduce chunk size to 500 for better retrieval"
 ## Troubleshooting
 
 ### PDF Not Found
+
 ```bash
 Error: PDF not found: tests/data/How to Train Guide.pdf
 ```
+
 **Solution:** Add your PDF to `backend/tests/data/`
 
 ### Collection Already Exists
+
 If you want to start fresh:
+
 ```bash
 make test-rag-clean
 make test-rag
 ```
 
 ### Import Errors
+
 Make sure you're running from the backend directory:
+
 ```bash
 cd backend
 make test-rag
 ```
 
 ### Qdrant Connection Error
+
 Ensure Qdrant is running:
+
 ```bash
 docker ps | grep qdrant
 # If not running:
@@ -292,6 +313,7 @@ docker-compose up -d qdrant
 ## Future Enhancements
 
 Potential additions:
+
 - [ ] Support for multiple PDFs in a single test
 - [ ] Parallel evaluation across different configurations
 - [ ] Automatic regression detection with alerts

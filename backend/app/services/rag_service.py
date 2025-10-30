@@ -4,30 +4,28 @@ RAG service orchestration layer.
 Coordinates embedding generation, vector storage, document loading, and search.
 """
 
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 from uuid import UUID
-import os
 
-from app.services.rag.protocols import (
-    Document,
-    DocumentChunk,
-    SearchResult,
-    EmbeddingProvider,
-    VectorStore,
-    TextSplitter,
-)
-from app.services.rag.embeddings import OpenAIEmbeddings
-from app.services.rag.vector_store import QdrantVectorStore
-from app.services.rag.text_splitter import SmartTextSplitter
+from app.config import settings
 from app.services.rag.bm25_index import BM25Index
+from app.services.rag.embeddings import OpenAIEmbeddings
 from app.services.rag.hybrid_search import HybridSearchService
 from app.services.rag.loaders import (
     BaseDocumentLoader,
-    TextLoader,
     PDFLoader,
+    TextLoader,
     WebLoader,
 )
-from app.config import settings
+from app.services.rag.protocols import (
+    Document,
+    EmbeddingProvider,
+    SearchResult,
+    TextSplitter,
+    VectorStore,
+)
+from app.services.rag.text_splitter import SmartTextSplitter
+from app.services.rag.vector_store import QdrantVectorStore
 
 # Try to import DocxLoader
 try:

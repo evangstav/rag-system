@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # Database
     database_url: str = Field(
         default="postgresql+asyncpg://user:pass@localhost:5432/ragchat",
-        alias="DATABASE_URL"
+        alias="DATABASE_URL",
     )
 
     # OpenAI
@@ -31,8 +31,7 @@ class Settings(BaseSettings):
     # Application
     secret_key: str = Field(default="your-secret-key-here", alias="SECRET_KEY")
     cors_origins: List[str] = Field(
-        default=["http://localhost:3000"],
-        alias="CORS_ORIGINS"
+        default=["http://localhost:3000"], alias="CORS_ORIGINS"
     )
 
     # Environment
@@ -44,7 +43,9 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = Field(default=30, alias="JWT_EXPIRE_MINUTES")
 
     # RAG settings - Embedding
-    embedding_model: str = Field(default="text-embedding-3-small", alias="EMBEDDING_MODEL")
+    embedding_model: str = Field(
+        default="text-embedding-3-small", alias="EMBEDDING_MODEL"
+    )
     embedding_dimensions: int = Field(default=1536, alias="EMBEDDING_DIMENSIONS")
 
     # RAG settings - Chunking (character-based, legacy)
@@ -61,21 +62,26 @@ class Settings(BaseSettings):
 
     # RAG settings - Hybrid Search
     enable_hybrid_search: bool = Field(default=False, alias="ENABLE_HYBRID_SEARCH")
-    hybrid_search_semantic_weight: float = Field(default=0.5, alias="HYBRID_SEARCH_SEMANTIC_WEIGHT")
-    hybrid_search_keyword_weight: float = Field(default=0.5, alias="HYBRID_SEARCH_KEYWORD_WEIGHT")
+    hybrid_search_semantic_weight: float = Field(
+        default=0.5, alias="HYBRID_SEARCH_SEMANTIC_WEIGHT"
+    )
+    hybrid_search_keyword_weight: float = Field(
+        default=0.5, alias="HYBRID_SEARCH_KEYWORD_WEIGHT"
+    )
     hybrid_search_rrf_k: int = Field(default=60, alias="HYBRID_SEARCH_RRF_K")
-    hybrid_search_retrieval_k: int = Field(default=20, alias="HYBRID_SEARCH_RETRIEVAL_K")
+    hybrid_search_retrieval_k: int = Field(
+        default=20, alias="HYBRID_SEARCH_RETRIEVAL_K"
+    )
 
     # LLM settings
-    default_llm_model: str = Field(default="gpt-4-turbo-preview", alias="DEFAULT_LLM_MODEL")
+    default_llm_model: str = Field(
+        default="gpt-4-turbo-preview", alias="DEFAULT_LLM_MODEL"
+    )
     max_tokens: int = Field(default=4000, alias="MAX_TOKENS")
     temperature: float = Field(default=0.7, alias="TEMPERATURE")
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
     )
 
     @property
