@@ -3,6 +3,9 @@
 **Status:** Ready to implement after hybrid search PR is merged
 **Estimated Time:** 3-4 days
 **Expected Improvement:** +40-50% in Precision@5 and NDCG@5
+**Last Updated:** 2025-10-30 (merged with main branch updates)
+
+> **Note:** The main branch has been updated with token-based chunking configuration (`chunk_size_tokens`, `chunk_overlap_tokens`, `tokenizer`) that was originally identified as a critical issue in the proposal. This is now ✅ **already fixed**, so Phase 1.1 tasks can be simplified to focus only on reranking settings.
 
 ---
 
