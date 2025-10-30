@@ -13,7 +13,6 @@ from uuid import UUID
 import json
 import os
 from typing import AsyncGenerator
-from datetime import datetime
 
 from app.dependencies import get_db, get_current_active_user
 from app.models.database import (
@@ -25,14 +24,15 @@ from app.models.database import (
     KnowledgePool,
     User,
 )
-from app.models.schemas import ChatRequest, ChatMessage
+from app.models.schemas import ChatRequest
 from app.services.rag_service import RAGService
+from app.services.rag.text_splitter import TokenAwareSplitter
 
 router = APIRouter()
 
 # Initialize clients
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-rag_service = RAGService()
+rag_service = RAGService(text_splitter=TokenAwareSplitter())
 
 
 async def get_scratchpad_context(db: AsyncSession, user_id: UUID) -> str:
@@ -71,9 +71,11 @@ async def get_scratchpad_context(db: AsyncSession, user_id: UUID) -> str:
 
     # Format journal (today's entry)
     from datetime import date
+
     today = date.today()
     journals = [
-        e for e in entries
+        e
+        for e in entries
         if e.entry_type == ScratchpadEntryType.JOURNAL
         and e.entry_date
         and e.entry_date.date() == today
@@ -81,7 +83,9 @@ async def get_scratchpad_context(db: AsyncSession, user_id: UUID) -> str:
     if journals:
         journal_content = journals[-1].content
         if journal_content.strip():
-            context_parts.append(f"**User's Journal Entry (Today):**\n{journal_content}")
+            context_parts.append(
+                f"**User's Journal Entry (Today):**\n{journal_content}"
+            )
 
     if not context_parts:
         return ""
@@ -139,14 +143,16 @@ async def get_rag_context(
     sources = []
 
     for i, result in enumerate(results, 1):
-        context_parts.append(
-            f"\n[Source {i}: {result.filename}]\n{result.content}"
+        context_parts.append(f"\n[Source {i}: {result.filename}]\n{result.content}")
+        sources.append(
+            {
+                "filename": result.filename,
+                "score": result.score,
+                "content_preview": result.content[:200] + "..."
+                if len(result.content) > 200
+                else result.content,
+            }
         )
-        sources.append({
-            "filename": result.filename,
-            "score": result.score,
-            "content_preview": result.content[:200] + "..." if len(result.content) > 200 else result.content,
-        })
 
     return "\n".join(context_parts), sources
 
@@ -193,7 +199,7 @@ async def build_system_message(
 
 You have been provided with additional context to help answer the user's question. Use this context when relevant, but also apply your general knowledge.
 
-{'\n'.join(context_parts)}
+{"\n".join(context_parts)}
 
 Remember to cite sources when using information from the retrieved knowledge."""
     else:
@@ -240,7 +246,9 @@ async def stream_chat(
                 conversation = result.scalar_one_or_none()
 
                 if not conversation:
-                    raise HTTPException(status_code=404, detail="Conversation not found")
+                    raise HTTPException(
+                        status_code=404, detail="Conversation not found"
+                    )
             else:
                 # Create new conversation
                 conversation = Conversation(
@@ -260,7 +268,9 @@ async def stream_chat(
                 .order_by(DBMessage.created_at.desc())
                 .limit(20)  # Keep last 20 messages for context
             )
-            history_messages = result.scalars().all()[::-1]  # Reverse to chronological order
+            history_messages = result.scalars().all()[
+                ::-1
+            ]  # Reverse to chronological order
 
             # Extract user's last message
             user_message = request.messages[-1] if request.messages else None
@@ -294,16 +304,20 @@ async def stream_chat(
 
             # Add conversation history
             for msg in history_messages:
-                messages.append({
-                    "role": msg.role.value,
-                    "content": msg.content,
-                })
+                messages.append(
+                    {
+                        "role": msg.role.value,
+                        "content": msg.content,
+                    }
+                )
 
             # Add current user message
-            messages.append({
-                "role": "user",
-                "content": user_query,
-            })
+            messages.append(
+                {
+                    "role": "user",
+                    "content": user_query,
+                }
+            )
 
             # Stream response from OpenAI
             stream = await client.chat.completions.create(
@@ -342,13 +356,20 @@ async def stream_chat(
 
             # Update conversation title if it's the first exchange
             # Check if title is None, 'None', or empty, and this is the first exchange (no history before this message)
-            if (not conversation.title or conversation.title.strip() == "" or conversation.title == "None") and len(history_messages) == 0:
+            if (
+                not conversation.title
+                or conversation.title.strip() == ""
+                or conversation.title == "None"
+            ) and len(history_messages) == 0:
                 # Generate a concise title from the conversation
                 try:
                     title_response = await llm_service.client.chat.completions.create(
                         model=llm_service.model,
                         messages=[
-                            {"role": "system", "content": "Generate a concise 3-5 word title for this conversation. Return only the title, no quotes or extra text."},
+                            {
+                                "role": "system",
+                                "content": "Generate a concise 3-5 word title for this conversation. Return only the title, no quotes or extra text.",
+                            },
                             {"role": "user", "content": user_query},
                             {"role": "assistant", "content": response_text},
                         ],
@@ -357,11 +378,17 @@ async def stream_chat(
                     )
                     generated_title = title_response.choices[0].message.content.strip()
                     # Fallback to first 50 chars if generation fails
-                    conversation.title = generated_title if generated_title else user_query[:50] + ("..." if len(user_query) > 50 else "")
+                    conversation.title = (
+                        generated_title
+                        if generated_title
+                        else user_query[:50] + ("..." if len(user_query) > 50 else "")
+                    )
                 except Exception as e:
                     print(f"Error generating title: {e}")
                     # Fallback to first 50 chars
-                    conversation.title = user_query[:50] + ("..." if len(user_query) > 50 else "")
+                    conversation.title = user_query[:50] + (
+                        "..." if len(user_query) > 50 else ""
+                    )
 
             await db.commit()
 

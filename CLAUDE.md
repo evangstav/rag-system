@@ -285,6 +285,8 @@ REDIS_URL=redis://localhost:6379
 
 See comprehensive implementation details in:
 
-- `COMPLETE_DEVELOPMENT_GUIDE.md` - Full production architecture
-- `QUICK_START_GUIDE.md` - 2-hour MVP setup
-- `RAG_SYSTEM_SNIPPET_COLLECTION.md` - Code snippets (if exists)
+- `docs/development/COMPLETE_DEVELOPMENT_GUIDE.md` - Full production architecture
+- `docs/guides/QUICK_START_GUIDE.md` - 2-hour MVP setup
+- `docs/reference/RAG_SYSTEM_SNIPPET_COLLECTION.md` - Code snippets
+- `docs/development/E2E_TESTING.md` - Automated testing framework
+- `docs/status/PROJECT_STATUS.md` - Current features and roadmap

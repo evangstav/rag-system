@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # Database
     database_url: str = Field(
         default="postgresql+asyncpg://user:pass@localhost:5432/ragchat",
-        alias="DATABASE_URL"
+        alias="DATABASE_URL",
     )
 
     # OpenAI
@@ -31,8 +31,7 @@ class Settings(BaseSettings):
     # Application
     secret_key: str = Field(default="your-secret-key-here", alias="SECRET_KEY")
     cors_origins: List[str] = Field(
-        default=["http://localhost:3000"],
-        alias="CORS_ORIGINS"
+        default=["http://localhost:3000"], alias="CORS_ORIGINS"
     )
 
     # Environment
@@ -44,22 +43,27 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = Field(default=30, alias="JWT_EXPIRE_MINUTES")
 
     # RAG settings
-    embedding_model: str = Field(default="text-embedding-3-small", alias="EMBEDDING_MODEL")
+    embedding_model: str = Field(
+        default="text-embedding-3-small", alias="EMBEDDING_MODEL"
+    )
     embedding_dimensions: int = Field(default=1536, alias="EMBEDDING_DIMENSIONS")
     chunk_size: int = Field(default=1000, alias="CHUNK_SIZE")
     chunk_overlap: int = Field(default=200, alias="CHUNK_OVERLAP")
     max_rag_results: int = Field(default=5, alias="MAX_RAG_RESULTS")
 
+    chunk_size_tokens: int = Field(default=512, alias="CHUNK_SIZE_TOKENS")
+    chunk_overlap_tokens: int = Field(default=64, alias="CHUNK_OVERLAP_TOKENS")
+    tokenizer: str = Field(default="cl100k_base", alias="TOKENIZER")
+
     # LLM settings
-    default_llm_model: str = Field(default="gpt-4-turbo-preview", alias="DEFAULT_LLM_MODEL")
+    default_llm_model: str = Field(
+        default="gpt-4-turbo-preview", alias="DEFAULT_LLM_MODEL"
+    )
     max_tokens: int = Field(default=4000, alias="MAX_TOKENS")
     temperature: float = Field(default=0.7, alias="TEMPERATURE")
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
     )
 
     @property
