@@ -441,7 +441,6 @@ class BM25Document(Base):
     )
 
     def __repr__(self) -> str:
-        content_preview = self.content[:50] + "..." if len(self.content) > 50 else self.content
         return f"<BM25Document(collection={self.collection_name}, doc_id={self.document_id}, chunk={self.chunk_index})>"
 
 
