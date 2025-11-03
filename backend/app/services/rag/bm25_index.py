@@ -254,7 +254,7 @@ class BM25Index:
 
         return deleted_count
 
-    def has_collection(self, collection_name: str) -> bool:
+    async def has_collection(self, collection_name: str) -> bool:
         """Check if collection exists in BM25 index."""
         return collection_name in self._bm25_indices
 
