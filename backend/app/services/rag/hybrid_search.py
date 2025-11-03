@@ -159,7 +159,7 @@ class HybridSearchService:
         """Perform BM25 keyword search."""
         try:
             # Check if BM25 index exists for this collection
-            if not self.bm25_index.has_collection(collection_name):
+            if not await self.bm25_index.has_collection(collection_name):
                 logger.warning(
                     f"BM25 index not found for collection '{collection_name}'. "
                     "Hybrid search will use semantic results only."
