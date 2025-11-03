@@ -2,9 +2,19 @@
 
 This directory contains detailed implementation plans and proposals for major features and improvements to the RAG system.
 
+## Purpose
+
+Implementation plans serve as:
+- **Roadmaps** - Step-by-step guides for implementing complex features
+- **Research Documentation** - Background research and industry best practices
+- **Technical Specifications** - Detailed architecture and code examples
+- **Project Memory** - Historical context for future maintainers
+
+---
+
 ## Active Plans
 
-### Query Rewriting Enhancement
+### 1. Query Rewriting Enhancement
 
 **Status**: 📋 Ready for Implementation
 **Priority**: ⭐ High
@@ -37,6 +47,39 @@ A comprehensive plan to implement advanced query rewriting strategies for improv
 
 ---
 
+### 2. Retrieval Improvements (Reranking & Deduplication)
+
+**Status**: 📋 Ready for Implementation
+**Priority**: ⭐ High
+**Expected Impact**: +40-50% improvement in retrieval quality
+**Dependencies**: ✅ Hybrid search implemented (merged in main)
+
+Comprehensive proposal for improving RAG retrieval post-processing through reranking and deduplication.
+
+**Documents**:
+- [**RAG Retrieval Improvement Proposal**](./RAG_RETRIEVAL_IMPROVEMENT_PROPOSAL.md) - Multi-stage retrieval pipeline with complete implementation code
+- [**Reranking & Deduplication Implementation**](./RERANKING_DEDUPLICATION_IMPLEMENTATION.md) - Day-by-day execution plan (3-4 days)
+
+**Key Features**:
+- **Cross-encoder reranking** using state-of-the-art models (+30-40% precision)
+- **MMR deduplication** for result diversification (+8-12% precision)
+- **Feature flags** for gradual rollout (`ENABLE_RERANKING`, `ENABLE_MMR`)
+- **Multiple reranker options**: self-hosted, Cohere API, FlashRank
+- **Comprehensive testing**: unit tests, integration tests, A/B comparison
+
+**Expected Metrics**:
+- Precision@5: 0.45 → 0.68 (+51%)
+- NDCG@5: 0.50 → 0.74 (+48%)
+- Latency: +200-300ms (acceptable)
+
+**Timeline**: 3-4 days
+- Day 1: Configuration setup and core module implementation
+- Day 2: Integration with RAGService and comprehensive testing
+- Day 3: Evaluation and baseline comparison
+- Day 4: Optimization, tuning, and documentation
+
+---
+
 ## Plan Structure
 
 Each implementation plan should include:
@@ -49,6 +92,38 @@ Each implementation plan should include:
 6. **Evaluation Plan** - Metrics, benchmarks, and success criteria
 7. **Cost-Benefit Analysis** - Trade-offs and ROI considerations
 8. **References** - Research papers and industry best practices
+
+---
+
+## Implementation Workflow
+
+```
+Research → Plan → Review → Implement → Test → Deploy → Monitor
+   ↓         ↓       ↓         ↓         ↓       ↓        ↓
+  Docs   This Dir  PR Review  Local   Staging  Prod   Analytics
+```
+
+1. **Research phase** → Create proposal document here
+2. **Planning phase** → Create implementation plan here
+3. **Review phase** → Submit PR with plans for team review
+4. **Implementation** → Execute plan locally or via PR
+5. **Testing** → Run evaluation suite (see [evaluation docs](../evaluation/))
+6. **Deployment** → Gradual rollout with feature flags
+7. **Monitoring** → Track metrics and adjust as needed
+
+---
+
+## Status Tracking
+
+Plans can have the following statuses:
+
+- **Research** - Gathering information and best practices
+- **Proposed** - Plan written, awaiting review
+- **Approved** - Reviewed and ready to implement
+- **In Progress** - Currently being implemented
+- **Testing** - Implementation complete, under evaluation
+- **Deployed** - Live in production
+- **Archived** - Superseded or no longer relevant
 
 ---
 
@@ -73,3 +148,11 @@ When proposing a new major feature or improvement:
 6. Update this README with your plan summary
 
 **Note**: Plans should be research-backed, actionable, and include enough detail for implementation without being overly prescriptive about implementation details.
+
+---
+
+## Questions?
+
+- Check [CLAUDE.md](../../CLAUDE.md) for project overview
+- See [PROJECT_STATUS.md](../status/PROJECT_STATUS.md) for current priorities
+- Review [COMPLETE_DEVELOPMENT_GUIDE.md](../development/COMPLETE_DEVELOPMENT_GUIDE.md) for architecture details
