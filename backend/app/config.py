@@ -5,7 +5,7 @@ Loads configuration from environment variables and .env file.
 """
 
 from typing import List
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, ValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -100,7 +100,7 @@ class Settings(BaseSettings):
 
     @field_validator("hybrid_search_semantic_weight", "hybrid_search_keyword_weight")
     @classmethod
-    def validate_weight_range(cls, v: float, info) -> float:
+    def validate_weight_range(cls, v: float, info: ValidationInfo) -> float:
         """Ensure hybrid search weights are between 0 and 1."""
         if not 0 <= v <= 1:
             raise ValueError(
