@@ -127,7 +127,7 @@ def test_weights_sum_warning():
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
 
-        settings = Settings(
+        Settings(
             OPENAI_API_KEY="test-key",
             HYBRID_SEARCH_SEMANTIC_WEIGHT=0.3,
             HYBRID_SEARCH_KEYWORD_WEIGHT=0.3,  # Sum = 0.6
