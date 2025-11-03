@@ -5,19 +5,20 @@ Following SQLAlchemy 2.0 async patterns with proper relationships and indexes.
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 from sqlalchemy import (
     Boolean,
     DateTime,
     Enum,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 import enum
 import uuid
@@ -392,3 +393,66 @@ class UserMemory(Base):
     def __repr__(self) -> str:
         content_preview = self.content[:50] + "..." if len(self.content) > 50 else self.content
         return f"<UserMemory(id={self.id}, importance={self.importance}, content={content_preview})>"
+
+
+class BM25Document(Base):
+    """
+    BM25 full-text search index for hybrid search.
+
+    Stores document chunks with PostgreSQL Full-Text Search capabilities.
+    Uses tsvector for efficient keyword search to complement semantic vector search.
+    """
+
+    __tablename__ = "bm25_documents"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+
+    # Collection identifier (matches Qdrant collection names)
+    collection_name: Mapped[str] = mapped_column(
+        String(200),
+        nullable=False,
+        index=True
+    )
+
+    # Document identifiers (must match vector store)
+    document_id: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # Content for search and retrieval
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Full-text search vector (automatically maintained by PostgreSQL)
+    content_tsv: Mapped[Optional[Any]] = mapped_column(
+        TSVECTOR,
+        nullable=True
+    )
+
+    # Additional metadata (source, page numbers, etc.)
+    doc_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
+
+    def __repr__(self) -> str:
+        return f"<BM25Document(collection={self.collection_name}, doc_id={self.document_id}, chunk={self.chunk_index})>"
+
+
+# Create indexes for BM25Documents
+Index(
+    'idx_bm25_documents_collection_document',
+    BM25Document.collection_name,
+    BM25Document.document_id,
+)
+
+Index(
+    'idx_bm25_documents_fts',
+    BM25Document.content_tsv,
+    postgresql_using='gin',
+)
