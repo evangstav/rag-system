@@ -81,6 +81,7 @@ async def postgres_bm25(db_session, sample_chunks, collection_name):
     try:
         await index.delete_collection(collection_name)
     except Exception:
+        # Ignore errors during collection cleanup to avoid test failures from non-critical issues.
         pass
 
 
