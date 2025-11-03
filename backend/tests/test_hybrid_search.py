@@ -9,7 +9,8 @@ Tests cover:
 """
 
 import pytest
-from typing import List, Dict, Any
+import pytest_asyncio
+from typing import List
 from pydantic import ValidationError
 
 from app.services.rag.protocols import DocumentChunk, SearchResult
@@ -52,7 +53,7 @@ def sample_chunks() -> List[DocumentChunk]:
     ]
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def bm25_index(sample_chunks) -> BM25Index:
     """Create and populate BM25 index."""
     index = BM25Index()
@@ -108,7 +109,7 @@ class TestBM25Index:
         assert len(results) >= 2
 
         # Results should contain JavaScript or TypeScript
-        for doc, score in results:
+        for doc, _ in results:
             content = doc["content"]
             assert "JavaScript" in content or "TypeScript" in content
 
@@ -125,7 +126,7 @@ class TestBM25Index:
         assert len(results) == 0
 
     @pytest.mark.asyncio
-    async def test_append_documents(self, bm25_index, sample_chunks):
+    async def test_append_documents(self, bm25_index):
         """Test appending new documents to existing index."""
         initial_size = bm25_index.get_collection_size("test_collection")
 
@@ -172,7 +173,7 @@ class TestBM25Index:
         )
 
         # Should not find doc1 chunks anymore
-        for doc, score in results:
+        for doc, _ in results:
             assert doc["document_id"] != "doc1"
 
     @pytest.mark.asyncio
@@ -260,14 +261,14 @@ class TestHybridSearchService:
             dimensions = 1536
             model_name = "test-model"
 
-            async def embed_text(self, text):
+            async def embed_text(self):
                 return [0.1] * self.dimensions
 
             async def embed_batch(self, texts):
                 return [[0.1] * self.dimensions] * len(texts)
 
         class MockVectorStore:
-            async def search(self, **kwargs):
+            async def search(self):
                 return semantic_results
 
         hybrid_service = HybridSearchService(
@@ -320,11 +321,11 @@ class TestHybridSearchService:
         class MockEmbeddingProvider:
             dimensions = 1536
 
-            async def embed_text(self, text):
+            async def embed_text(self):
                 return [0.1] * self.dimensions
 
         class MockVectorStore:
-            async def search(self, **kwargs):
+            async def search(self):
                 return semantic_results
 
         hybrid_service = HybridSearchService(
@@ -547,17 +548,18 @@ class TestConfigurationValidation:
 
     def test_weights_sum_warning(self):
         """Test that warning is issued when weights don't sum to 1.0."""
-        from app.config import Settings
         import warnings
+        from app.config import Settings
 
         # Weights that don't sum to 1.0 should warn
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
 
-            settings = Settings(
+            # Create settings with weights that sum to 0.6 (not 1.0)
+            Settings(
                 OPENAI_API_KEY="test-key",
                 HYBRID_SEARCH_SEMANTIC_WEIGHT=0.3,
-                HYBRID_SEARCH_KEYWORD_WEIGHT=0.3,  # Sum = 0.6
+                HYBRID_SEARCH_KEYWORD_WEIGHT=0.3,
             )
 
             # Check that a warning was issued

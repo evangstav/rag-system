@@ -7,10 +7,13 @@ Coordinates embedding generation, vector storage, document loading, and search.
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.config import settings
 from app.services.rag.bm25_index import BM25Index
 from app.services.rag.embeddings import OpenAIEmbeddings
 from app.services.rag.hybrid_search import HybridSearchService
+from app.services.rag.postgres_bm25 import PostgresBM25Index
 from app.services.rag.loaders import (
     BaseDocumentLoader,
     PDFLoader,
@@ -54,6 +57,8 @@ class RAGService:
         vector_store: Optional[VectorStore] = None,
         text_splitter: Optional[TextSplitter] = None,
         enable_hybrid_search: Optional[bool] = None,
+        bm25_index = None,
+        db_session: Optional[AsyncSession] = None,
     ):
         """
         Initialize RAG service.
@@ -63,10 +68,13 @@ class RAGService:
             vector_store: Vector store (defaults to QdrantVectorStore)
             text_splitter: Text splitter (defaults to SmartTextSplitter)
             enable_hybrid_search: Enable hybrid search (defaults to config setting)
+            bm25_index: BM25 index (PostgresBM25Index or BM25Index, defaults to in-memory)
+            db_session: Database session for PostgresBM25Index (optional)
         """
         self.embedding_provider = embedding_provider or OpenAIEmbeddings()
         self.vector_store = vector_store or QdrantVectorStore()
         self.text_splitter = text_splitter or SmartTextSplitter()
+        self.db_session = db_session
 
         # Initialize document loaders
         self.loaders: List[BaseDocumentLoader] = [
@@ -86,7 +94,16 @@ class RAGService:
         )
 
         if self.enable_hybrid_search:
-            self.bm25_index = BM25Index()
+            # Use provided BM25 index or create default
+            if bm25_index is not None:
+                self.bm25_index = bm25_index
+            elif db_session is not None:
+                # Use PostgreSQL-backed BM25 if db session provided
+                self.bm25_index = PostgresBM25Index(db_session)
+            else:
+                # Fall back to in-memory BM25
+                self.bm25_index = BM25Index()
+
             self.hybrid_search = HybridSearchService(
                 embedding_provider=self.embedding_provider,
                 vector_store=self.vector_store,

@@ -62,6 +62,11 @@ class Settings(BaseSettings):
 
     # RAG settings - Hybrid Search
     enable_hybrid_search: bool = Field(default=False, alias="ENABLE_HYBRID_SEARCH")
+    bm25_backend: str = Field(
+        default="postgresql",
+        alias="BM25_BACKEND",
+        description="BM25 backend: 'postgresql' (persistent, scalable) or 'memory' (fast, volatile)"
+    )
     hybrid_search_semantic_weight: float = Field(
         default=0.5, alias="HYBRID_SEARCH_SEMANTIC_WEIGHT"
     )
@@ -81,6 +86,17 @@ class Settings(BaseSettings):
     temperature: float = Field(default=0.7, alias="TEMPERATURE")
 
     # Validators
+
+    @field_validator("bm25_backend")
+    @classmethod
+    def validate_bm25_backend(cls, v: str) -> str:
+        """Ensure BM25 backend is valid."""
+        valid_backends = ["postgresql", "memory"]
+        if v not in valid_backends:
+            raise ValueError(
+                f"bm25_backend must be one of {valid_backends}, got '{v}'"
+            )
+        return v
 
     @field_validator("hybrid_search_semantic_weight", "hybrid_search_keyword_weight")
     @classmethod
@@ -102,7 +118,7 @@ class Settings(BaseSettings):
         but weights summing to 1.0 are easier to interpret.
         """
         # Only validate if semantic_weight has already been set
-        if hasattr(info.data, "hybrid_search_semantic_weight"):
+        if "hybrid_search_semantic_weight" in info.data:
             semantic_weight = info.data.get("hybrid_search_semantic_weight", 0.5)
             total = semantic_weight + v
             if not (0.99 <= total <= 1.01):  # Allow small floating point errors

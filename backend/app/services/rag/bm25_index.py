@@ -5,11 +5,11 @@ BM25 (Best Match 25) is a probabilistic ranking function used for keyword matchi
 It complements semantic search by capturing exact term matches that embeddings might miss.
 """
 
-from typing import List, Dict, Any
-import re
-from collections import defaultdict
-from rank_bm25 import BM25Okapi
 import logging
+import re
+from typing import Any, Dict, List
+
+from rank_bm25 import BM25Okapi
 
 from app.services.rag.protocols import DocumentChunk
 
@@ -53,7 +53,9 @@ class BM25Index:
             documents: List of document chunks to index
         """
         if not documents:
-            logger.warning(f"No documents provided for BM25 indexing: {collection_name}")
+            logger.warning(
+                f"No documents provided for BM25 indexing: {collection_name}"
+            )
             return
 
         # Tokenize all documents
@@ -279,7 +281,7 @@ class BM25Index:
         text = text.lower()
 
         # Split on non-alphanumeric characters (keep numbers and letters)
-        tokens = re.findall(r'\w+', text)
+        tokens = re.findall(r"\w+", text)
 
         # Filter out very short tokens (single characters)
         tokens = [t for t in tokens if len(t) >= 2]
