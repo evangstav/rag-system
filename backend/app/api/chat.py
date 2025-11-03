@@ -128,11 +128,11 @@ async def get_rag_context(
 
     collection_names = [pool.collection_name for pool in pools]
 
-    # Search across pools
-    results = await rag_service.search_multiple_pools(
+    # Search across pools with reranking and deduplication
+    results = await rag_service.search_multiple_pools_with_reranking(
         query=query,
         collection_names=collection_names,
-        limit=limit,
+        final_k=limit,
     )
 
     if not results:

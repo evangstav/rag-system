@@ -27,16 +27,28 @@ RAG (Retrieval-Augmented Generation) chat system with scratchpad functionality. 
 - **Streaming**: Vercel AI SDK (`ai` package)
 - **Layout**: `react-resizable-panels` for split-pane interface
 
+## Package Management
+
+**IMPORTANT**: This project uses `uv` for Python package management.
+
+- **Always use `uv pip install` instead of `pip install`**
+- `uv` is faster and more reliable than standard pip
+- All dependency commands in this project assume `uv` is being used
+
 ## Development Commands
 
 ### Setup
 
 ```bash
-# Install dependencies (uv recommended)
+# Install dependencies (REQUIRED: use uv)
+cd backend
 uv pip install -e .
 
-# With standard pip
-pip install -e .
+# Install individual packages
+uv pip install package-name
+
+# Sync with pyproject.toml
+uv pip sync
 ```
 
 ### Run Application

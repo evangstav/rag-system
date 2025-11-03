@@ -24,10 +24,12 @@ app/services/__init__.py
 app/services/rag_service.py
 app/services/rag/__init__.py
 app/services/rag/bm25_index.py
+app/services/rag/deduplication.py
 app/services/rag/embeddings.py
 app/services/rag/hybrid_search.py
 app/services/rag/postgres_bm25.py
 app/services/rag/protocols.py
+app/services/rag/reranker.py
 app/services/rag/text_splitter.py
 app/services/rag/vector_store.py
 app/services/rag/loaders/__init__.py

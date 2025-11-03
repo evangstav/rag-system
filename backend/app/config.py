@@ -58,14 +58,67 @@ class Settings(BaseSettings):
     tokenizer: str = Field(default="cl100k_base", alias="TOKENIZER")
 
     # RAG settings - Retrieval
-    max_rag_results: int = Field(default=5, alias="MAX_RAG_RESULTS")
+    max_rag_results: int = Field(
+        default=5,
+        alias="MAX_RAG_RESULTS",
+        description="DEPRECATED: Use final_retrieval_k instead",
+    )
+
+    # RAG settings - Reranking
+    enable_reranking: bool = Field(
+        default=True,
+        alias="ENABLE_RERANKING",
+        description="Enable cross-encoder reranking for improved relevance",
+    )
+    reranker_model: str = Field(
+        default="mixedbread-ai/mxbai-rerank-large-v1",
+        alias="RERANKER_MODEL",
+        description="Model for reranking. Options: mixedbread-ai/mxbai-rerank-large-v1, "
+        "BAAI/bge-reranker-v2-m3, cross-encoder/ms-marco-MiniLM-L-6-v2, "
+        "flashrank, cohere-rerank-v3",
+    )
+    initial_retrieval_k: int = Field(
+        default=40,
+        alias="INITIAL_RETRIEVAL_K",
+        description="Number of candidates to retrieve before reranking (20-50 recommended)",
+    )
+    rerank_top_k: int = Field(
+        default=15,
+        alias="RERANK_TOP_K",
+        description="Number of results to keep after reranking (10-20 recommended)",
+    )
+
+    # RAG settings - Deduplication
+    enable_mmr: bool = Field(
+        default=True,
+        alias="ENABLE_MMR",
+        description="Enable MMR (Maximal Marginal Relevance) for result diversification",
+    )
+    mmr_lambda: float = Field(
+        default=0.7,
+        alias="MMR_LAMBDA",
+        description="MMR lambda parameter. 1.0=pure relevance, 0.0=pure diversity. "
+        "0.7 recommended for balanced results",
+    )
+    final_retrieval_k: int = Field(
+        default=8,
+        alias="FINAL_RETRIEVAL_K",
+        description="Final number of results to return after all post-processing (5-10 recommended)",
+    )
+
+    # RAG settings - Optional API-based rerankers
+    cohere_api_key: str | None = Field(
+        default=None,
+        alias="COHERE_API_KEY",
+        description="Cohere API key for Cohere Rerank v3 (optional, paid service)",
+    )
 
     # RAG settings - Hybrid Search
     enable_hybrid_search: bool = Field(default=False, alias="ENABLE_HYBRID_SEARCH")
     bm25_backend: str = Field(
         default="postgresql",
         alias="BM25_BACKEND",
-        description="BM25 backend: 'postgresql' (persistent, scalable) or 'memory' (fast, volatile)"
+        description="BM25 backend: 'postgresql' (persistent, scalable) or 'memory' (fast, volatile)",
     )
     hybrid_search_semantic_weight: float = Field(
         default=0.5, alias="HYBRID_SEARCH_SEMANTIC_WEIGHT"
@@ -93,9 +146,7 @@ class Settings(BaseSettings):
         """Ensure BM25 backend is valid."""
         valid_backends = ["postgresql", "memory"]
         if v not in valid_backends:
-            raise ValueError(
-                f"bm25_backend must be one of {valid_backends}, got '{v}'"
-            )
+            raise ValueError(f"bm25_backend must be one of {valid_backends}, got '{v}'")
         return v
 
     @field_validator("hybrid_search_semantic_weight", "hybrid_search_keyword_weight")
@@ -103,9 +154,7 @@ class Settings(BaseSettings):
     def validate_weight_range(cls, v: float, info: ValidationInfo) -> float:
         """Ensure hybrid search weights are between 0 and 1."""
         if not 0 <= v <= 1:
-            raise ValueError(
-                f"{info.field_name} must be between 0 and 1, got {v}"
-            )
+            raise ValueError(f"{info.field_name} must be between 0 and 1, got {v}")
         return v
 
     @field_validator("hybrid_search_keyword_weight")
@@ -123,11 +172,32 @@ class Settings(BaseSettings):
             total = semantic_weight + v
             if not (0.99 <= total <= 1.01):  # Allow small floating point errors
                 import warnings
+
                 warnings.warn(
                     f"Hybrid search weights sum to {total:.2f} instead of 1.0. "
                     f"This may make weight interpretation less intuitive. "
                     f"(semantic={semantic_weight}, keyword={v})"
                 )
+        return v
+
+    @field_validator("mmr_lambda")
+    @classmethod
+    def validate_mmr_lambda(cls, v: float) -> float:
+        """Ensure MMR lambda is between 0 and 1."""
+        if not 0 <= v <= 1:
+            raise ValueError("mmr_lambda must be between 0 and 1")
+        return v
+
+    @field_validator("initial_retrieval_k")
+    @classmethod
+    def validate_initial_retrieval_k(cls, v: int) -> int:
+        """Ensure initial_retrieval_k is reasonable."""
+        if v < 5:
+            raise ValueError("initial_retrieval_k must be at least 5")
+        if v > 100:
+            raise ValueError(
+                "initial_retrieval_k should not exceed 100 (performance impact)"
+            )
         return v
 
     model_config = SettingsConfigDict(

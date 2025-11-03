@@ -4,6 +4,7 @@ RAG service orchestration layer.
 Coordinates embedding generation, vector storage, document loading, and search.
 """
 
+import asyncio
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
@@ -11,15 +12,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.services.rag.bm25_index import BM25Index
+from app.services.rag.deduplication import MMRDeduplicator, TokenDeduplicator
 from app.services.rag.embeddings import OpenAIEmbeddings
 from app.services.rag.hybrid_search import HybridSearchService
-from app.services.rag.postgres_bm25 import PostgresBM25Index
 from app.services.rag.loaders import (
     BaseDocumentLoader,
     PDFLoader,
     TextLoader,
     WebLoader,
 )
+from app.services.rag.postgres_bm25 import PostgresBM25Index
 from app.services.rag.protocols import (
     Document,
     EmbeddingProvider,
@@ -27,6 +29,7 @@ from app.services.rag.protocols import (
     TextSplitter,
     VectorStore,
 )
+from app.services.rag.reranker import get_reranker
 from app.services.rag.text_splitter import SmartTextSplitter
 from app.services.rag.vector_store import QdrantVectorStore
 
@@ -57,7 +60,7 @@ class RAGService:
         vector_store: Optional[VectorStore] = None,
         text_splitter: Optional[TextSplitter] = None,
         enable_hybrid_search: Optional[bool] = None,
-        bm25_index = None,
+        bm25_index=None,
         db_session: Optional[AsyncSession] = None,
     ):
         """
@@ -112,6 +115,19 @@ class RAGService:
         else:
             self.bm25_index = None
             self.hybrid_search = None
+
+        # Initialize reranker if enabled
+        if settings.enable_reranking:
+            self.reranker = get_reranker(settings)
+        else:
+            self.reranker = None
+
+        # Initialize deduplicator
+        if settings.enable_mmr:
+            self.deduplicator = MMRDeduplicator(lambda_param=settings.mmr_lambda)
+        else:
+            # Fall back to token deduplicator
+            self.deduplicator = TokenDeduplicator()
 
     async def create_knowledge_pool(
         self,
@@ -346,6 +362,171 @@ class RAGService:
 
         # Return top N overall results
         return all_results[:limit]
+
+    async def search_with_reranking(
+        self,
+        query: str,
+        collection_name: str,
+        final_k: Optional[int] = None,
+        score_threshold: Optional[float] = None,
+        filter_conditions: Optional[Dict[str, Any]] = None,
+        use_hybrid: Optional[bool] = None,
+    ) -> List[SearchResult]:
+        """
+        Enhanced search with reranking and deduplication.
+
+        Pipeline:
+        1. Retrieve initial_retrieval_k candidates (default 40)
+        2. Rerank with cross-encoder → top rerank_top_k (default 15)
+        3. Deduplicate with MMR → final_k results (default 8)
+
+        Args:
+            query: Search query
+            collection_name: Knowledge pool to search in
+            final_k: Final number of results (default: settings.final_retrieval_k)
+            score_threshold: Minimum similarity score (0-1)
+            filter_conditions: Optional metadata filters
+            use_hybrid: Override to force hybrid/semantic search
+
+        Returns:
+            List of SearchResult objects, reranked and deduplicated
+
+        Example:
+            >>> results = await rag_service.search_with_reranking(
+            ...     query="How to reset password?",
+            ...     collection_name="user_1234_docs",
+            ...     final_k=8
+            ... )
+        """
+        final_k = final_k or settings.final_retrieval_k
+
+        # Stage 1: Initial retrieval (larger candidate set)
+        candidates = await self.search(
+            query=query,
+            collection_name=collection_name,
+            limit=settings.initial_retrieval_k,
+            score_threshold=score_threshold,
+            filter_conditions=filter_conditions,
+            use_hybrid=use_hybrid,
+        )
+
+        if not candidates:
+            return []
+
+        # Stage 2: Reranking (if enabled)
+        if self.reranker:
+            reranked = await self.reranker.rerank(
+                query=query,
+                results=candidates,
+                top_k=settings.rerank_top_k,
+            )
+        else:
+            reranked = candidates[: settings.rerank_top_k]
+
+        # Stage 3: Deduplication (if needed)
+        if len(reranked) > final_k:
+            # Get embeddings for MMR
+            texts = [r.content for r in reranked]
+            embeddings = await self.embedding_provider.embed_batch(texts)
+
+            final_results = await self.deduplicator.deduplicate(
+                results=reranked,
+                top_k=final_k,
+                embeddings=embeddings,
+            )
+        else:
+            final_results = reranked[:final_k]
+
+        return final_results
+
+    async def search_multiple_pools_with_reranking(
+        self,
+        query: str,
+        collection_names: List[str],
+        final_k: Optional[int] = None,
+        score_threshold: Optional[float] = None,
+    ) -> List[SearchResult]:
+        """
+        Multi-pool search with reranking and deduplication.
+
+        Strategy:
+        1. Search all pools in parallel
+        2. Merge and sort by original score
+        3. Apply reranking to top candidates
+        4. Apply deduplication for final results
+
+        Args:
+            query: Search query
+            collection_names: List of knowledge pools to search
+            final_k: Final number of results (default: settings.final_retrieval_k)
+            score_threshold: Minimum similarity score
+
+        Returns:
+            Combined, reranked, and deduplicated results from all pools
+
+        Example:
+            >>> results = await rag_service.search_multiple_pools_with_reranking(
+            ...     query="authentication issues",
+            ...     collection_names=["docs_pool", "kb_pool"],
+            ...     final_k=10
+            ... )
+        """
+        final_k = final_k or settings.final_retrieval_k
+
+        # Distribute retrieval budget across pools
+        per_pool_limit = max(5, settings.initial_retrieval_k // len(collection_names))
+
+        # Search all pools in parallel
+        search_tasks = [
+            self.search(
+                query=query,
+                collection_name=collection,
+                limit=per_pool_limit,
+                score_threshold=score_threshold,
+            )
+            for collection in collection_names
+        ]
+
+        pool_results = await asyncio.gather(*search_tasks)
+
+        # Merge all results
+        all_results = []
+        for results in pool_results:
+            all_results.extend(results)
+
+        # Sort by original score
+        all_results.sort(key=lambda x: x.score, reverse=True)
+
+        # Take top candidates for reranking
+        candidates = all_results[: settings.initial_retrieval_k]
+
+        if not candidates:
+            return []
+
+        # Apply reranking
+        if self.reranker:
+            reranked = await self.reranker.rerank(
+                query=query,
+                results=candidates,
+                top_k=settings.rerank_top_k,
+            )
+        else:
+            reranked = candidates[: settings.rerank_top_k]
+
+        # Apply deduplication
+        if len(reranked) > final_k:
+            texts = [r.content for r in reranked]
+            embeddings = await self.embedding_provider.embed_batch(texts)
+
+            final_results = await self.deduplicator.deduplicate(
+                results=reranked,
+                top_k=final_k,
+                embeddings=embeddings,
+            )
+        else:
+            final_results = reranked[:final_k]
+
+        return final_results
 
     async def delete_document(
         self,
