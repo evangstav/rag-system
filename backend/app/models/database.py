@@ -5,7 +5,7 @@ Following SQLAlchemy 2.0 async patterns with proper relationships and indexes.
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 from sqlalchemy import (
     Boolean,
     DateTime,
@@ -426,7 +426,7 @@ class BM25Document(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Full-text search vector (automatically maintained by PostgreSQL)
-    content_tsv: Mapped[Optional[str]] = mapped_column(
+    content_tsv: Mapped[Optional[Any]] = mapped_column(
         TSVECTOR,
         nullable=True
     )
