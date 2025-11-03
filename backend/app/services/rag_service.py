@@ -7,7 +7,13 @@ Coordinates embedding generation, vector storage, document loading, and search.
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import settings
+from app.services.rag.bm25_index import BM25Index
 from app.services.rag.embeddings import OpenAIEmbeddings
+from app.services.rag.hybrid_search import HybridSearchService
+from app.services.rag.postgres_bm25 import PostgresBM25Index
 from app.services.rag.loaders import (
     BaseDocumentLoader,
     PDFLoader,
@@ -50,6 +56,9 @@ class RAGService:
         embedding_provider: Optional[EmbeddingProvider] = None,
         vector_store: Optional[VectorStore] = None,
         text_splitter: Optional[TextSplitter] = None,
+        enable_hybrid_search: Optional[bool] = None,
+        bm25_index = None,
+        db_session: Optional[AsyncSession] = None,
     ):
         """
         Initialize RAG service.
@@ -58,10 +67,14 @@ class RAGService:
             embedding_provider: Embedding provider (defaults to OpenAIEmbeddings)
             vector_store: Vector store (defaults to QdrantVectorStore)
             text_splitter: Text splitter (defaults to SmartTextSplitter)
+            enable_hybrid_search: Enable hybrid search (defaults to config setting)
+            bm25_index: BM25 index (PostgresBM25Index or BM25Index, defaults to in-memory)
+            db_session: Database session for PostgresBM25Index (optional)
         """
         self.embedding_provider = embedding_provider or OpenAIEmbeddings()
         self.vector_store = vector_store or QdrantVectorStore()
         self.text_splitter = text_splitter or SmartTextSplitter()
+        self.db_session = db_session
 
         # Initialize document loaders
         self.loaders: List[BaseDocumentLoader] = [
@@ -72,6 +85,33 @@ class RAGService:
 
         if DOCX_AVAILABLE:
             self.loaders.append(DocxLoader())
+
+        # Initialize hybrid search components if enabled
+        self.enable_hybrid_search = (
+            enable_hybrid_search
+            if enable_hybrid_search is not None
+            else settings.enable_hybrid_search
+        )
+
+        if self.enable_hybrid_search:
+            # Use provided BM25 index or create default
+            if bm25_index is not None:
+                self.bm25_index = bm25_index
+            elif db_session is not None:
+                # Use PostgreSQL-backed BM25 if db session provided
+                self.bm25_index = PostgresBM25Index(db_session)
+            else:
+                # Fall back to in-memory BM25
+                self.bm25_index = BM25Index()
+
+            self.hybrid_search = HybridSearchService(
+                embedding_provider=self.embedding_provider,
+                vector_store=self.vector_store,
+                bm25_index=self.bm25_index,
+            )
+        else:
+            self.bm25_index = None
+            self.hybrid_search = None
 
     async def create_knowledge_pool(
         self,
@@ -97,6 +137,10 @@ class RAGService:
             collection_name: Name of the collection to delete
         """
         await self.vector_store.delete_collection(collection_name)
+
+        # Also delete BM25 index if hybrid search is enabled
+        if self.enable_hybrid_search and self.bm25_index:
+            await self.bm25_index.delete_collection(collection_name)
 
     async def load_document(
         self,
@@ -185,6 +229,13 @@ class RAGService:
             vectors=embeddings,
         )
 
+        # 5. Build BM25 index if hybrid search is enabled
+        if self.enable_hybrid_search and self.bm25_index:
+            await self.bm25_index.append_documents(
+                collection_name=collection_name,
+                documents=chunks,
+            )
+
         # Calculate stats
         total_tokens = sum(len(text.split()) for text in chunk_texts)
 
@@ -192,6 +243,7 @@ class RAGService:
             "num_chunks": len(chunks),
             "num_tokens": total_tokens,
             "status": "completed",
+            "hybrid_search_enabled": self.enable_hybrid_search,
         }
 
     async def search(
@@ -201,9 +253,12 @@ class RAGService:
         limit: int = 5,
         score_threshold: Optional[float] = None,
         filter_conditions: Optional[Dict[str, Any]] = None,
+        use_hybrid: Optional[bool] = None,
     ) -> List[SearchResult]:
         """
         Search for relevant documents.
+
+        Uses hybrid search (semantic + keyword) if enabled, otherwise pure semantic.
 
         Args:
             query: Search query
@@ -211,14 +266,29 @@ class RAGService:
             limit: Maximum number of results
             score_threshold: Minimum similarity score (0-1)
             filter_conditions: Optional metadata filters
+            use_hybrid: Override to force hybrid/semantic search (defaults to service config)
 
         Returns:
             List of search results sorted by relevance
         """
-        # Generate query embedding
+        # Determine whether to use hybrid search
+        should_use_hybrid = (
+            use_hybrid if use_hybrid is not None else self.enable_hybrid_search
+        )
+
+        # Use hybrid search if enabled and available
+        if should_use_hybrid and self.hybrid_search:
+            return await self.hybrid_search.search(
+                query=query,
+                collection_name=collection_name,
+                limit=limit,
+                score_threshold=score_threshold,
+                filter_conditions=filter_conditions,
+            )
+
+        # Fall back to pure semantic search
         query_embedding = await self.embedding_provider.embed_text(query)
 
-        # Search vector store
         results = await self.vector_store.search(
             collection_name=collection_name,
             query_vector=query_embedding,
@@ -292,10 +362,20 @@ class RAGService:
         Returns:
             Number of chunks deleted
         """
-        return await self.vector_store.delete_by_document_id(
+        # Delete from vector store
+        num_deleted = await self.vector_store.delete_by_document_id(
             collection_name=collection_name,
             document_id=document_id,
         )
+
+        # Also delete from BM25 index if hybrid search is enabled
+        if self.enable_hybrid_search and self.bm25_index:
+            await self.bm25_index.delete_by_document_id(
+                collection_name=collection_name,
+                document_id=str(document_id),
+            )
+
+        return num_deleted
 
     async def get_collection_stats(self, collection_name: str) -> Dict[str, Any]:
         """
@@ -305,9 +385,16 @@ class RAGService:
             collection_name: Knowledge pool name
 
         Returns:
-            Dict with stats (vectors_count, dimensions, etc.)
+            Dict with stats (vectors_count, dimensions, hybrid_search, etc.)
         """
-        return await self.vector_store.get_collection_stats(collection_name)
+        stats = await self.vector_store.get_collection_stats(collection_name)
+
+        # Add hybrid search stats if enabled
+        if self.enable_hybrid_search and self.hybrid_search:
+            hybrid_stats = await self.hybrid_search.get_stats(collection_name)
+            stats["hybrid_search"] = hybrid_stats
+
+        return stats
 
     def format_search_results_for_context(
         self,

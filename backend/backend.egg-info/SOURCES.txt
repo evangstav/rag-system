@@ -23,7 +23,10 @@ app/models/schemas.py
 app/services/__init__.py
 app/services/rag_service.py
 app/services/rag/__init__.py
+app/services/rag/bm25_index.py
 app/services/rag/embeddings.py
+app/services/rag/hybrid_search.py
+app/services/rag/postgres_bm25.py
 app/services/rag/protocols.py
 app/services/rag/text_splitter.py
 app/services/rag/vector_store.py
@@ -38,3 +41,6 @@ backend.egg-info/SOURCES.txt
 backend.egg-info/dependency_links.txt
 backend.egg-info/requires.txt
 backend.egg-info/top_level.txt
+tests/test_config_validation.py
+tests/test_hybrid_search.py
+tests/test_postgres_bm25.py

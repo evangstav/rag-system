@@ -22,5 +22,7 @@ Requires-Dist: python-dotenv>=1.0.0
 Requires-Dist: python-jose[cryptography]>=3.3.0
 Requires-Dist: python-multipart>=0.0.9
 Requires-Dist: qdrant-client>=1.15.1
+Requires-Dist: rank-bm25>=0.2.2
 Requires-Dist: sqlalchemy>=2.0.44
+Requires-Dist: tiktoken>=0.5.1
 Requires-Dist: uvicorn>=0.37.0
