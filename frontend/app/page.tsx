@@ -25,7 +25,7 @@ function ChatContent() {
 
   const { currentConversationId, createConversation, loadConversations } = useConversationStore();
 
-  const { messages, sendMessage, isLoading, setMessages } = useChat({
+  const { messages, sendMessage, status, setMessages } = useChat({
     transport: new TextStreamChatTransport({
       api: '/api/chat',
       headers: () => ({
@@ -37,6 +37,8 @@ function ChatContent() {
       await loadConversations();
     },
   });
+
+  const isLoading = status === 'in_progress' || status === 'streaming';
 
   // Load messages when conversation changes
   useEffect(() => {
@@ -83,27 +85,31 @@ function ChatContent() {
     <div className="flex h-screen">
       <PanelGroup direction="horizontal">
         {/* Conversation Sidebar Panel */}
-        <Panel defaultSize={20} minSize={15} maxSize={30}>
+        <Panel defaultSize={18} minSize={5} maxSize={30} collapsible={true}>
           <ConversationSidebar />
         </Panel>
-        <PanelResizeHandle className="w-1 bg-slate-700 hover:bg-violet-500 transition-colors" />
+        <PanelResizeHandle className="w-1 bg-slate-700 hover:bg-violet-500 transition-all duration-200" />
 
         {/* Chat Panel */}
-        <Panel defaultSize={60} minSize={40}>
-          <div className="flex flex-col h-full bg-gradient-to-br from-slate-50 via-white to-slate-50">
+        <Panel defaultSize={showScratchpad ? 52 : 72} minSize={40}>
+          <div className="flex flex-col h-full bg-gradient-to-br from-slate-50 via-white to-slate-100">
             {/* Header */}
-            <header className="flex-shrink-0 border-b border-slate-200 bg-white/80 backdrop-blur-xl">
-              <div className="max-w-4xl mx-auto px-6 py-4">
+            <header className="flex-shrink-0 border-b border-slate-200 bg-white/90 backdrop-blur-xl shadow-sm">
+              <div className="max-w-5xl mx-auto px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    {/* Toggle Scratchpad Button */}
+                    {/* Toggle Workspace Button */}
                     <button
                       onClick={() => setShowScratchpad(!showScratchpad)}
-                      className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
-                      title={showScratchpad ? 'Hide scratchpad' : 'Show scratchpad'}
+                      className={`p-2 rounded-lg transition-all duration-200 ${
+                        showScratchpad
+                          ? 'bg-violet-100 text-violet-600'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                      title={showScratchpad ? 'Hide workspace' : 'Show workspace'}
                     >
                       <svg
-                        className="w-5 h-5 text-slate-600"
+                        className="w-5 h-5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -112,17 +118,17 @@ function ChatContent() {
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M4 6h16M4 12h16M4 18h16"
+                          d={showScratchpad ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"}
                         />
                       </svg>
                     </button>
 
-                    <div>
-                      <h1 className="text-xl font-semibold text-slate-900">
+                    <div className="border-l border-slate-300 pl-4">
+                      <h1 className="text-xl font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
                         RAG Chat Assistant
                       </h1>
-                      <p className="text-sm text-slate-500 mt-0.5">
-                        Powered by AI with contextual knowledge
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        AI-powered conversations with knowledge base
                       </p>
                     </div>
                   </div>
@@ -383,8 +389,8 @@ function ChatContent() {
         {/* Scratchpad Panel */}
         {showScratchpad && (
           <>
-            <PanelResizeHandle className="w-1 bg-slate-200 hover:bg-violet-400 transition-colors" />
-            <Panel defaultSize={20} minSize={15} maxSize={35}>
+            <PanelResizeHandle className="w-1 bg-slate-300 hover:bg-violet-500 transition-all duration-200" />
+            <Panel defaultSize={30} minSize={20} maxSize={40}>
               <Scratchpad />
             </Panel>
           </>
