@@ -61,8 +61,10 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.jwt_expire_minutes)
 
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.jwt_algorithm)
+    to_encode.update({"exp": expire, "type": "access"})
+    encoded_jwt = jwt.encode(
+        to_encode, settings.secret_key, algorithm=settings.jwt_algorithm
+    )
 
     return encoded_jwt
 
@@ -81,7 +83,9 @@ def create_refresh_token(data: dict) -> str:
     expire = datetime.utcnow() + timedelta(days=7)  # Refresh tokens last 7 days
     to_encode.update({"exp": expire, "type": "refresh"})
 
-    encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.jwt_algorithm)
+    encoded_jwt = jwt.encode(
+        to_encode, settings.secret_key, algorithm=settings.jwt_algorithm
+    )
     return encoded_jwt
 
 
@@ -96,7 +100,9 @@ def decode_token(token: str) -> Optional[dict]:
         Decoded token payload if valid, None if invalid
     """
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(
+            token, settings.secret_key, algorithms=[settings.jwt_algorithm]
+        )
         return payload
     except JWTError:
         return None
