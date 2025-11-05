@@ -64,42 +64,72 @@ export function ConversationSidebar() {
 
   if (isCollapsed) {
     return (
-      <div className="flex flex-col h-full bg-slate-900 border-r border-slate-700">
-        <button
-          onClick={() => setIsCollapsed(false)}
-          className="p-4 hover:bg-slate-800 transition-colors"
-          aria-label="Expand sidebar"
-        >
-          <svg
-            className="w-6 h-6 text-slate-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+      <div className="flex flex-col h-full bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 border-r border-slate-700">
+        <div className="flex flex-col items-center gap-4 p-4">
+          <button
+            onClick={() => setIsCollapsed(false)}
+            className="p-3 rounded-lg hover:bg-slate-800 transition-all duration-200 group"
+            aria-label="Expand sidebar"
+            title="Expand sidebar"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
-        </button>
+            <svg
+              className="w-5 h-5 text-slate-400 group-hover:text-violet-400 transition-colors"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </button>
+
+          <div className="w-px h-8 bg-slate-700"></div>
+
+          <button
+            onClick={handleNewConversation}
+            disabled={isLoading}
+            className="p-3 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-violet-500/30 disabled:opacity-50"
+            aria-label="New conversation"
+            title="New conversation"
+          >
+            <svg
+              className="w-5 h-5 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 border-r border-slate-700">
+    <div className="flex flex-col h-full bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 border-r border-slate-700">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-700">
-        <h2 className="text-lg font-semibold text-slate-100">Conversations</h2>
+      <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-900/50 backdrop-blur-sm">
+        <h2 className="text-lg font-bold text-transparent bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text">
+          Conversations
+        </h2>
         <button
           onClick={() => setIsCollapsed(true)}
-          className="p-1 hover:bg-slate-800 rounded transition-colors"
+          className="p-2 hover:bg-slate-800 rounded-lg transition-all duration-200 group"
           aria-label="Collapse sidebar"
+          title="Collapse sidebar"
         >
           <svg
-            className="w-5 h-5 text-slate-400"
+            className="w-4 h-4 text-slate-400 group-hover:text-violet-400 transition-colors"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -119,7 +149,7 @@ export function ConversationSidebar() {
         <button
           onClick={handleNewConversation}
           disabled={isLoading}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-lg font-medium hover:from-violet-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-500/30"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-lg font-semibold hover:from-violet-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-500/30 hover:shadow-violet-500/40 hover:shadow-xl"
         >
           <svg
             className="w-5 h-5"
