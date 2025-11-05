@@ -38,7 +38,7 @@ function ChatContent() {
     },
   });
 
-  const isLoading = status === 'submitted';
+  const isLoading = status === 'in_progress' || status === 'streaming';
 
   // Load messages when conversation changes
   useEffect(() => {
