@@ -35,6 +35,12 @@ export function Scratchpad() {
   const [showHistory, setShowHistory] = useState(false);
   const [viewingHistoryEntry, setViewingHistoryEntry] = useState<JournalEntry | null>(null);
 
+  // Reset showHistory when leaving the journal sub-tab
+  useEffect(() => {
+    if (scratchpadSubTab !== 'journal' && showHistory) {
+      setShowHistory(false);
+    }
+  }, [scratchpadSubTab, showHistory]);
   // Reset viewingHistoryEntry when leaving the journal tab
   useEffect(() => {
     if (scratchpadSubTab !== 'journal' && viewingHistoryEntry !== null) {
