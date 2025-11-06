@@ -4,7 +4,7 @@ Scratchpad API endpoints.
 Handles user scratchpad entries (todos, notes, journal).
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, date
@@ -183,7 +183,7 @@ async def save_scratchpad(
 
 @router.get("/journal/history", response_model=JournalHistoryResponse)
 async def get_journal_history(
-    limit: int = 10,
+    limit: int = Query(10, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
