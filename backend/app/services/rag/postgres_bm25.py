@@ -5,15 +5,15 @@ Uses PostgreSQL's native full-text search with ts_rank_cd for BM25-style ranking
 Provides persistent, scalable alternative to in-memory BM25 index.
 """
 
-import logging
 from typing import Any, Dict, List, Tuple
 from sqlalchemy import select, delete, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.logging_config import get_logger
 from app.models.database import BM25Document
 from app.services.rag.protocols import DocumentChunk
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class PostgresBM25Index:
@@ -57,7 +57,8 @@ class PostgresBM25Index:
         """
         if not documents:
             logger.warning(
-                f"No documents provided for BM25 indexing: {collection_name}"
+                "postgres_bm25_no_documents",
+                collection_name=collection_name,
             )
             return
 
@@ -79,8 +80,9 @@ class PostgresBM25Index:
         await self.db.commit()
 
         logger.info(
-            f"BM25 index built for collection '{collection_name}' "
-            f"with {len(documents)} documents"
+            "postgres_bm25_index_built",
+            collection_name=collection_name,
+            num_documents=len(documents),
         )
 
     async def append_documents(
@@ -99,8 +101,9 @@ class PostgresBM25Index:
         await self.index_documents(collection_name, documents)
 
         logger.info(
-            f"Appended {len(documents)} documents to BM25 index "
-            f"for collection '{collection_name}'"
+            "postgres_bm25_documents_appended",
+            collection_name=collection_name,
+            num_documents=len(documents),
         )
 
     async def search(
@@ -127,7 +130,7 @@ class PostgresBM25Index:
             Sorted by score (highest first)
         """
         if not query or not query.strip():
-            logger.warning("Empty query provided to BM25 search")
+            logger.warning("postgres_bm25_empty_query")
             return []
 
         # Use websearch_to_tsquery for user-friendly query syntax
@@ -166,8 +169,10 @@ class PostgresBM25Index:
             results.append((metadata, score))
 
         logger.debug(
-            f"BM25 search in '{collection_name}' for '{query}' "
-            f"returned {len(results)} results"
+            "postgres_bm25_search_results",
+            collection_name=collection_name,
+            query=query,
+            num_results=len(results),
         )
 
         return results
@@ -186,8 +191,9 @@ class PostgresBM25Index:
 
         deleted_count = result.rowcount
         logger.info(
-            f"Deleted BM25 index for collection '{collection_name}' "
-            f"({deleted_count} documents)"
+            "postgres_bm25_collection_deleted",
+            collection_name=collection_name,
+            deleted_count=deleted_count,
         )
 
     async def delete_by_document_id(
@@ -215,8 +221,10 @@ class PostgresBM25Index:
 
         deleted_count = result.rowcount
         logger.info(
-            f"Deleted {deleted_count} chunks from BM25 index "
-            f"for document '{document_id}' in collection '{collection_name}'"
+            "postgres_bm25_document_deleted",
+            deleted_count=deleted_count,
+            document_id=document_id,
+            collection_name=collection_name,
         )
 
         return deleted_count

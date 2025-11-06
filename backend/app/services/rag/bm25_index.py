@@ -5,15 +5,15 @@ BM25 (Best Match 25) is a probabilistic ranking function used for keyword matchi
 It complements semantic search by capturing exact term matches that embeddings might miss.
 """
 
-import logging
 import re
 from typing import Any, Dict, List
 
 from rank_bm25 import BM25Okapi
 
+from app.logging_config import get_logger
 from app.services.rag.protocols import DocumentChunk
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class BM25Index:
@@ -54,7 +54,8 @@ class BM25Index:
         """
         if not documents:
             logger.warning(
-                f"No documents provided for BM25 indexing: {collection_name}"
+                "bm25_no_documents",
+                collection_name=collection_name,
             )
             return
 
@@ -81,8 +82,9 @@ class BM25Index:
         self._tokenized_docs[collection_name] = tokenized_docs
 
         logger.info(
-            f"BM25 index built for collection '{collection_name}' "
-            f"with {len(documents)} documents"
+            "bm25_index_built",
+            collection_name=collection_name,
+            num_documents=len(documents),
         )
 
     async def append_documents(
@@ -133,8 +135,10 @@ class BM25Index:
         self._tokenized_docs[collection_name] = all_tokenized
 
         logger.info(
-            f"BM25 index updated for collection '{collection_name}' "
-            f"(+{len(documents)} documents, total: {len(all_metadata)})"
+            "bm25_index_updated",
+            collection_name=collection_name,
+            new_documents=len(documents),
+            total_documents=len(all_metadata),
         )
 
     async def search(
@@ -157,8 +161,8 @@ class BM25Index:
         """
         if collection_name not in self._bm25_indices:
             logger.warning(
-                f"BM25 index not found for collection '{collection_name}'. "
-                "Returning empty results."
+                "bm25_index_not_found",
+                collection_name=collection_name,
             )
             return []
 
@@ -170,7 +174,7 @@ class BM25Index:
         query_tokens = self._tokenize(query)
 
         if not query_tokens:
-            logger.warning(f"Empty query after tokenization: '{query}'")
+            logger.warning("empty_tokenized_query", query=query)
             return []
 
         # Get BM25 scores for all documents
@@ -199,7 +203,7 @@ class BM25Index:
             del self._bm25_indices[collection_name]
             del self._document_metadata[collection_name]
             del self._tokenized_docs[collection_name]
-            logger.info(f"BM25 index deleted for collection '{collection_name}'")
+            logger.info("bm25_index_deleted", collection_name=collection_name)
 
     async def delete_by_document_id(
         self,
@@ -248,8 +252,10 @@ class BM25Index:
             await self.delete_collection(collection_name)
 
         logger.info(
-            f"Deleted {deleted_count} chunks from BM25 index "
-            f"for document '{document_id}' in collection '{collection_name}'"
+            "bm25_chunks_deleted",
+            deleted_count=deleted_count,
+            document_id=document_id,
+            collection_name=collection_name,
         )
 
         return deleted_count

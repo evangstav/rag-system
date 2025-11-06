@@ -2,9 +2,26 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import auth, chat, conversations, scratchpad, rag
+from app.config import settings
+from app.logging_config import setup_logging, get_logger
 
+# Configure structured logging on startup
+json_logs = settings.environment == "production"
+log_level = "DEBUG" if settings.debug else "INFO"
+setup_logging(json_logs=json_logs, log_level=log_level)
+
+logger = get_logger(__name__)
 
 app = FastAPI(title="RAG Chat System")
+
+# Log startup information
+logger.info(
+    "application_starting",
+    environment=settings.environment,
+    debug=settings.debug,
+    log_format="json" if json_logs else "console",
+    log_level=log_level,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,4 +40,11 @@ app.include_router(rag.router, prefix="/api/rag", tags=["rag"])
 
 @app.get("/health")
 async def health():
+    logger.debug("health_check_requested")
     return {"status": "healthy"}
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Log application startup."""
+    logger.info("application_ready", message="RAG Chat System is ready to accept requests")

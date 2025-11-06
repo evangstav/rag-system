@@ -28,10 +28,10 @@ from app.models.schemas import ChatRequest
 from app.services.rag_service import RAGService
 from app.services.rag.text_splitter import TokenAwareSplitter
 from app.config import settings
-import logging
+from app.logging_config import get_logger
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Initialize clients
 client = AsyncOpenAI(api_key=settings.openai_api_key)
@@ -153,7 +153,10 @@ async def get_rag_context(
 
     # Log retrieval results
     logger.debug(
-        f"Retrieved {len(results)} results for query: {query[:50]}... from pools: {collection_names}"
+        "rag_results_retrieved",
+        num_results=len(results),
+        query_preview=query[:50],
+        pools=collection_names,
     )
 
     # Format context
@@ -227,11 +230,12 @@ async def build_system_message(
             metadata["num_sources"] = len(sources)
 
     if context_parts:
+        joined_context = "\n".join(context_parts)
         system_message = f"""{base_message}
 
 You have been provided with additional context to help answer the user's question. Use this context when relevant, but also apply your general knowledge.
 
-{"\n".join(context_parts)}
+{joined_context}
 
 Remember to cite sources when using information from the retrieved knowledge."""
     else:
@@ -420,14 +424,15 @@ async def stream_chat(
             # Log LLM call with token usage
             if usage_data:
                 logger.info(
-                    f"LLM call completed - Model: {model}, "
-                    f"Prompt tokens: {usage_data.prompt_tokens}, "
-                    f"Completion tokens: {usage_data.completion_tokens}, "
-                    f"Total tokens: {usage_data.total_tokens}, "
-                    f"Duration: {llm_duration_ms:.2f}ms"
+                    "llm_call_completed",
+                    model=model,
+                    prompt_tokens=usage_data.prompt_tokens,
+                    completion_tokens=usage_data.completion_tokens,
+                    total_tokens=usage_data.total_tokens,
+                    duration_ms=round(llm_duration_ms, 2),
                 )
             else:
-                logger.warning(f"LLM usage data unavailable for model: {model}")
+                logger.warning("llm_usage_data_unavailable", model=model)
 
             # Save assistant message to database
             assistant_db_message = DBMessage(
@@ -468,7 +473,7 @@ async def stream_chat(
                         else user_query[:50] + ("..." if len(user_query) > 50 else "")
                     )
                 except Exception as e:
-                    logger.error(f"Error generating title: {e}")
+                    logger.error("title_generation_error", error=str(e), error_type=type(e).__name__)
                     # Fallback to first 50 chars
                     conversation.title = user_query[:50] + (
                         "..." if len(user_query) > 50 else ""
@@ -480,9 +485,10 @@ async def stream_chat(
             total_duration_ms = (time.perf_counter() - start_time) * 1000
 
             logger.info(
-                f"Chat stream completed - Conversation: {conversation_id}, "
-                f"Duration: {total_duration_ms:.2f}ms, "
-                f"Response length: {len(full_response)} chars"
+                "chat_stream_completed",
+                conversation_id=str(conversation_id),
+                duration_ms=round(total_duration_ms, 2),
+                response_length=len(full_response),
             )
 
             # Send completion event
@@ -490,12 +496,17 @@ async def stream_chat(
 
         except HTTPException as e:
             logger.error(
-                f"Chat HTTP error - Status: {e.status_code}, Detail: {e.detail}"
+                "chat_http_error",
+                status_code=e.status_code,
+                detail=e.detail,
             )
             yield f"data: {json.dumps({'type': 'error', 'error': e.detail})}\n\n"
         except Exception as e:
             logger.error(
-                f"Chat stream error - Type: {type(e).__name__}, Error: {str(e)}"
+                "chat_stream_error",
+                error_type=type(e).__name__,
+                error=str(e),
+                exc_info=True,
             )
             yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
 

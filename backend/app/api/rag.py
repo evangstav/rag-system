@@ -4,11 +4,12 @@ RAG API endpoints.
 Handles document upload, knowledge pool management, and semantic search.
 """
 
-import logging
 import os
 import tempfile
 from typing import List
 from uuid import UUID
+
+from app.logging_config import get_logger
 
 from fastapi import (
     APIRouter,
@@ -41,7 +42,7 @@ from app.models.schemas import (
 )
 from app.services.rag_service import RAGService
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 router = APIRouter()
 
 # Global RAG service instance (in production, use dependency injection)
@@ -255,7 +256,13 @@ async def process_document_background(
 
         except Exception as e:
             # Mark document as failed
-            logger.error(f"Failed to process document {document_id}: {e}")
+            logger.error(
+                "document_processing_failed",
+                document_id=str(document_id),
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
             if doc:
                 doc.status = DocumentStatus.FAILED
                 doc.error_message = str(e)
@@ -344,7 +351,13 @@ async def delete_document(
             )
         except Exception as e:
             # Log error but continue with database deletion
-            logger.error(f"Error deleting from vector store: {e}")
+            logger.error(
+                "vector_store_deletion_error",
+                document_id=str(document_id),
+                collection_name=pool.collection_name,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
 
     # Delete from database
     await db.delete(document)

@@ -10,13 +10,13 @@ Uses Reciprocal Rank Fusion (RRF) to combine results from both methods.
 
 from typing import List, Dict, Any, Optional
 from collections import defaultdict
-import logging
 
+from app.logging_config import get_logger
 from app.services.rag.protocols import SearchResult, EmbeddingProvider, VectorStore
 from app.services.rag.bm25_index import BM25Index
 from app.config import settings
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class HybridSearchService:
@@ -113,9 +113,11 @@ class HybridSearchService:
         )
 
         logger.info(
-            f"Hybrid search completed: "
-            f"{len(semantic_results)} semantic + {len(keyword_results)} keyword → "
-            f"{len(combined_results)} fused results (top {limit} returned)"
+            "hybrid_search_completed",
+            semantic_results=len(semantic_results),
+            keyword_results=len(keyword_results),
+            fused_results=len(combined_results),
+            limit=limit,
         )
 
         # Return top-k results
@@ -143,11 +145,16 @@ class HybridSearchService:
                 filter_conditions=filter_conditions,
             )
 
-            logger.debug(f"Semantic search returned {len(results)} results")
+            logger.debug("semantic_search_results", num_results=len(results))
             return results
 
         except Exception as e:
-            logger.error(f"Semantic search failed: {e}")
+            logger.error(
+                "semantic_search_failed",
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
             return []
 
     async def _keyword_search(
@@ -161,8 +168,9 @@ class HybridSearchService:
             # Check if BM25 index exists for this collection
             if not await self.bm25_index.has_collection(collection_name):
                 logger.warning(
-                    f"BM25 index not found for collection '{collection_name}'. "
-                    "Hybrid search will use semantic results only."
+                    "bm25_index_not_found",
+                    collection_name=collection_name,
+                    message="Hybrid search will use semantic results only",
                 )
                 return []
 
@@ -173,11 +181,16 @@ class HybridSearchService:
                 limit=limit,
             )
 
-            logger.debug(f"BM25 search returned {len(results)} results")
+            logger.debug("bm25_search_results", num_results=len(results))
             return results
 
         except Exception as e:
-            logger.error(f"BM25 search failed: {e}")
+            logger.error(
+                "bm25_search_failed",
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
             return []
 
     def _reciprocal_rank_fusion(
@@ -319,7 +332,12 @@ class HybridSearchService:
             vector_stats = await self.vector_store.get_collection_stats(collection_name)
             stats["vector_stats"] = vector_stats
         except Exception as e:
-            logger.warning(f"Failed to get vector store stats: {e}")
+            logger.warning(
+                "vector_stats_fetch_failed",
+                collection_name=collection_name,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
             stats["vector_stats"] = None
 
         return stats
