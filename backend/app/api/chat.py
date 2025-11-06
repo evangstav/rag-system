@@ -12,6 +12,7 @@ from openai import AsyncOpenAI
 from uuid import UUID
 import json
 import os
+import time
 from typing import AsyncGenerator
 
 from app.dependencies import get_db, get_current_active_user
@@ -27,8 +28,12 @@ from app.models.database import (
 from app.models.schemas import ChatRequest
 from app.services.rag_service import RAGService
 from app.services.rag.text_splitter import TokenAwareSplitter
+from app.observability import get_logger, observe, get_langfuse_context
+from app.observability.utils import log_retrieval_results, log_llm_call, record_metric
+from app.config import settings
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 # Initialize clients
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -93,6 +98,7 @@ async def get_scratchpad_context(db: AsyncSession, user_id: UUID) -> str:
     return "\n\n".join(context_parts)
 
 
+@observe(name="get_rag_context", capture_input=True, capture_output=False)
 async def get_rag_context(
     db: AsyncSession,
     user_id: UUID,
@@ -107,6 +113,14 @@ async def get_rag_context(
         - Formatted context string
         - List of source documents (for metadata)
     """
+    logger.info(
+        "rag_context_requested",
+        query=query,
+        user_id=str(user_id),
+        pool_count=len(knowledge_pool_ids) if knowledge_pool_ids else None,
+        limit=limit,
+    )
+
     # Get collection names for the requested pools
     if knowledge_pool_ids:
         result = await db.execute(
@@ -124,6 +138,7 @@ async def get_rag_context(
     pools = result.scalars().all()
 
     if not pools:
+        logger.info("rag_context_no_pools", user_id=str(user_id))
         return "", []
 
     collection_names = [pool.collection_name for pool in pools]
@@ -136,7 +151,16 @@ async def get_rag_context(
     )
 
     if not results:
+        logger.info("rag_context_no_results", query=query, pools=collection_names)
         return "", []
+
+    # Log retrieval results
+    log_retrieval_results(
+        query=query,
+        results=results,
+        stage="final",
+        metadata={"pools": collection_names, "limit": limit},
+    )
 
     # Format context
     context_parts = ["**Retrieved Knowledge:**"]
@@ -154,9 +178,16 @@ async def get_rag_context(
             }
         )
 
+    logger.info(
+        "rag_context_built",
+        num_sources=len(sources),
+        context_length=len("\n".join(context_parts)),
+    )
+
     return "\n".join(context_parts), sources
 
 
+@observe(name="build_system_message", capture_input=False, capture_output=False)
 async def build_system_message(
     db: AsyncSession,
     user_id: UUID,
@@ -172,6 +203,13 @@ async def build_system_message(
         - System message string
         - Metadata dict (sources, context info)
     """
+    logger.info(
+        "building_system_message",
+        use_rag=use_rag,
+        use_scratchpad=use_scratchpad,
+        user_id=str(user_id),
+    )
+
     base_message = "You are a helpful AI assistant. You provide clear, accurate, and thoughtful responses."
 
     context_parts = []
@@ -183,6 +221,7 @@ async def build_system_message(
         if scratchpad_context:
             context_parts.append(scratchpad_context)
             metadata["scratchpad_included"] = True
+            logger.info("scratchpad_context_added", length=len(scratchpad_context))
 
     # Add RAG context
     if use_rag:
@@ -205,10 +244,18 @@ Remember to cite sources when using information from the retrieved knowledge."""
     else:
         system_message = base_message
 
+    logger.info(
+        "system_message_built",
+        message_length=len(system_message),
+        has_rag=bool(metadata.get("rag_sources")),
+        has_scratchpad=metadata.get("scratchpad_included", False),
+    )
+
     return system_message, metadata
 
 
 @router.post("/stream")
+@observe(name="stream_chat", capture_input=False, capture_output=False)
 async def stream_chat(
     request: ChatRequest,
     db: AsyncSession = Depends(get_db),
@@ -227,7 +274,29 @@ async def stream_chat(
     """
     user_id = current_user.id
 
+    # Update LangFuse trace context with user information
+    langfuse_ctx = get_langfuse_context()
+    if langfuse_ctx:
+        langfuse_ctx.update_current_trace(
+            user_id=str(user_id),
+            session_id=str(request.conversation_id)
+            if request.conversation_id
+            else None,
+            tags=["chat", "streaming"],
+        )
+
+    logger.info(
+        "chat_request_received",
+        user_id=str(user_id),
+        conversation_id=str(request.conversation_id)
+        if request.conversation_id
+        else None,
+        use_rag=request.use_rag,
+        use_scratchpad=request.use_scratchpad,
+    )
+
     async def generate() -> AsyncGenerator[str, None]:
+        start_time = time.perf_counter()
         try:
             # Get or create conversation
             conversation_id = request.conversation_id
@@ -320,16 +389,29 @@ async def stream_chat(
             )
 
             # Stream response from OpenAI
+            model = settings.default_llm_model
+
+            logger.info(
+                "llm_request_starting",
+                model=model,
+                message_count=len(messages),
+                system_message_length=len(messages[0]["content"]),
+            )
+
+            llm_start_time = time.perf_counter()
+
             stream = await client.chat.completions.create(
-                model=os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview"),
+                model=model,
                 messages=messages,
-                temperature=float(os.getenv("OPENAI_TEMPERATURE", "0.7")),
-                max_tokens=int(os.getenv("OPENAI_MAX_TOKENS", "2000")),
+                temperature=settings.temperature,
+                max_completion_tokens=settings.max_tokens,
                 stream=True,
+                stream_options={"include_usage": True},  # Request token usage
             )
 
             # Collect full response
             full_response = ""
+            usage_data = None
 
             # Send conversation ID first
             yield f"data: {json.dumps({'type': 'conversation_id', 'conversation_id': str(conversation_id)})}\n\n"
@@ -340,10 +422,47 @@ async def stream_chat(
 
             # Stream content
             async for chunk in stream:
+                # Capture usage data from final chunk
+                if hasattr(chunk, "usage") and chunk.usage:
+                    usage_data = chunk.usage
+
                 if chunk.choices[0].delta.content:
                     content = chunk.choices[0].delta.content
                     full_response += content
                     yield f"data: {json.dumps({'type': 'content', 'content': content})}\n\n"
+
+            llm_duration_ms = (time.perf_counter() - llm_start_time) * 1000
+
+            # Log LLM call with token usage
+            if usage_data:
+                log_llm_call(
+                    model=model,
+                    prompt_tokens=usage_data.prompt_tokens,
+                    completion_tokens=usage_data.completion_tokens,
+                    total_tokens=usage_data.total_tokens,
+                    duration_ms=llm_duration_ms,
+                    metadata={
+                        "stream": True,
+                        "use_rag": request.use_rag,
+                        "use_scratchpad": request.use_scratchpad,
+                    },
+                )
+
+                # Record metrics
+                record_metric(
+                    "llm.tokens_total",
+                    usage_data.total_tokens,
+                    unit="tokens",
+                    tags={"model": model, "user_id": str(user_id)},
+                )
+                record_metric(
+                    "llm.duration_ms",
+                    llm_duration_ms,
+                    unit="ms",
+                    tags={"model": model},
+                )
+            else:
+                logger.warning("llm_usage_data_unavailable", model=model)
 
             # Save assistant message to database
             assistant_db_message = DBMessage(
@@ -373,7 +492,7 @@ async def stream_chat(
                             {"role": "user", "content": user_query},
                             {"role": "assistant", "content": response_text},
                         ],
-                        max_tokens=50,
+                        max_completion_tokens=50,
                         temperature=0.7,
                     )
                     generated_title = title_response.choices[0].message.content.strip()
@@ -392,13 +511,43 @@ async def stream_chat(
 
             await db.commit()
 
+            # Calculate total duration
+            total_duration_ms = (time.perf_counter() - start_time) * 1000
+
+            logger.info(
+                "chat_stream_completed",
+                conversation_id=str(conversation_id),
+                total_duration_ms=round(total_duration_ms, 2),
+                response_length=len(full_response),
+                user_id=str(user_id),
+            )
+
+            # Record total request metric
+            record_metric(
+                "chat.request_duration_ms",
+                total_duration_ms,
+                unit="ms",
+                tags={"user_id": str(user_id), "use_rag": str(request.use_rag)},
+            )
+
             # Send completion event
             yield f"data: {json.dumps({'type': 'done', 'conversation_id': str(conversation_id)})}\n\n"
 
         except HTTPException as e:
+            logger.error(
+                "chat_http_error",
+                error=e.detail,
+                status_code=e.status_code,
+                user_id=str(user_id),
+            )
             yield f"data: {json.dumps({'type': 'error', 'error': e.detail})}\n\n"
         except Exception as e:
-            print(f"Error in stream_chat: {e}")
+            logger.error(
+                "chat_stream_error",
+                error=str(e),
+                error_type=type(e).__name__,
+                user_id=str(user_id),
+            )
             yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
 
     return StreamingResponse(
