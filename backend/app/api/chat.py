@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from openai import AsyncOpenAI
 from uuid import UUID
 import json
-import os
 import time
 from typing import AsyncGenerator
 
@@ -28,15 +27,14 @@ from app.models.database import (
 from app.models.schemas import ChatRequest
 from app.services.rag_service import RAGService
 from app.services.rag.text_splitter import TokenAwareSplitter
-from app.observability import get_logger, observe, get_langfuse_context
-from app.observability.utils import log_retrieval_results, log_llm_call, record_metric
 from app.config import settings
+import logging
 
 router = APIRouter()
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # Initialize clients
-client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = AsyncOpenAI(api_key=settings.openai_api_key)
 rag_service = RAGService(text_splitter=TokenAwareSplitter())
 
 
@@ -98,7 +96,6 @@ async def get_scratchpad_context(db: AsyncSession, user_id: UUID) -> str:
     return "\n\n".join(context_parts)
 
 
-@observe(name="get_rag_context", capture_input=True, capture_output=False)
 async def get_rag_context(
     db: AsyncSession,
     user_id: UUID,
@@ -155,11 +152,8 @@ async def get_rag_context(
         return "", []
 
     # Log retrieval results
-    log_retrieval_results(
-        query=query,
-        results=results,
-        stage="final",
-        metadata={"pools": collection_names, "limit": limit},
+    logger.debug(
+        f"Retrieved {len(results)} results for query: {query[:50]}... from pools: {collection_names}"
     )
 
     # Format context
@@ -187,7 +181,6 @@ async def get_rag_context(
     return "\n".join(context_parts), sources
 
 
-@observe(name="build_system_message", capture_input=False, capture_output=False)
 async def build_system_message(
     db: AsyncSession,
     user_id: UUID,
@@ -255,7 +248,6 @@ Remember to cite sources when using information from the retrieved knowledge."""
 
 
 @router.post("/stream")
-@observe(name="stream_chat", capture_input=False, capture_output=False)
 async def stream_chat(
     request: ChatRequest,
     db: AsyncSession = Depends(get_db),
@@ -273,17 +265,6 @@ async def stream_chat(
     Requires authentication via JWT token.
     """
     user_id = current_user.id
-
-    # Update LangFuse trace context with user information
-    langfuse_ctx = get_langfuse_context()
-    if langfuse_ctx:
-        langfuse_ctx.update_current_trace(
-            user_id=str(user_id),
-            session_id=str(request.conversation_id)
-            if request.conversation_id
-            else None,
-            tags=["chat", "streaming"],
-        )
 
     logger.info(
         "chat_request_received",
@@ -426,43 +407,27 @@ async def stream_chat(
                 if hasattr(chunk, "usage") and chunk.usage:
                     usage_data = chunk.usage
 
-                if chunk.choices[0].delta.content:
-                    content = chunk.choices[0].delta.content
-                    full_response += content
-                    yield f"data: {json.dumps({'type': 'content', 'content': content})}\n\n"
+                # Check if choices exist and have content
+                if chunk.choices and len(chunk.choices) > 0:
+                    delta = chunk.choices[0].delta
+                    if delta.content:
+                        content = delta.content
+                        full_response += content
+                        yield f"data: {json.dumps({'type': 'content', 'content': content})}\n\n"
 
             llm_duration_ms = (time.perf_counter() - llm_start_time) * 1000
 
             # Log LLM call with token usage
             if usage_data:
-                log_llm_call(
-                    model=model,
-                    prompt_tokens=usage_data.prompt_tokens,
-                    completion_tokens=usage_data.completion_tokens,
-                    total_tokens=usage_data.total_tokens,
-                    duration_ms=llm_duration_ms,
-                    metadata={
-                        "stream": True,
-                        "use_rag": request.use_rag,
-                        "use_scratchpad": request.use_scratchpad,
-                    },
-                )
-
-                # Record metrics
-                record_metric(
-                    "llm.tokens_total",
-                    usage_data.total_tokens,
-                    unit="tokens",
-                    tags={"model": model, "user_id": str(user_id)},
-                )
-                record_metric(
-                    "llm.duration_ms",
-                    llm_duration_ms,
-                    unit="ms",
-                    tags={"model": model},
+                logger.info(
+                    f"LLM call completed - Model: {model}, "
+                    f"Prompt tokens: {usage_data.prompt_tokens}, "
+                    f"Completion tokens: {usage_data.completion_tokens}, "
+                    f"Total tokens: {usage_data.total_tokens}, "
+                    f"Duration: {llm_duration_ms:.2f}ms"
                 )
             else:
-                logger.warning("llm_usage_data_unavailable", model=model)
+                logger.warning(f"LLM usage data unavailable for model: {model}")
 
             # Save assistant message to database
             assistant_db_message = DBMessage(
@@ -482,15 +447,15 @@ async def stream_chat(
             ) and len(history_messages) == 0:
                 # Generate a concise title from the conversation
                 try:
-                    title_response = await llm_service.client.chat.completions.create(
-                        model=llm_service.model,
+                    title_response = await client.chat.completions.create(
+                        model=model,
                         messages=[
                             {
                                 "role": "system",
                                 "content": "Generate a concise 3-5 word title for this conversation. Return only the title, no quotes or extra text.",
                             },
                             {"role": "user", "content": user_query},
-                            {"role": "assistant", "content": response_text},
+                            {"role": "assistant", "content": full_response},
                         ],
                         max_completion_tokens=50,
                         temperature=0.7,
@@ -503,7 +468,7 @@ async def stream_chat(
                         else user_query[:50] + ("..." if len(user_query) > 50 else "")
                     )
                 except Exception as e:
-                    print(f"Error generating title: {e}")
+                    logger.error(f"Error generating title: {e}")
                     # Fallback to first 50 chars
                     conversation.title = user_query[:50] + (
                         "..." if len(user_query) > 50 else ""
@@ -515,19 +480,9 @@ async def stream_chat(
             total_duration_ms = (time.perf_counter() - start_time) * 1000
 
             logger.info(
-                "chat_stream_completed",
-                conversation_id=str(conversation_id),
-                total_duration_ms=round(total_duration_ms, 2),
-                response_length=len(full_response),
-                user_id=str(user_id),
-            )
-
-            # Record total request metric
-            record_metric(
-                "chat.request_duration_ms",
-                total_duration_ms,
-                unit="ms",
-                tags={"user_id": str(user_id), "use_rag": str(request.use_rag)},
+                f"Chat stream completed - Conversation: {conversation_id}, "
+                f"Duration: {total_duration_ms:.2f}ms, "
+                f"Response length: {len(full_response)} chars"
             )
 
             # Send completion event
@@ -535,18 +490,12 @@ async def stream_chat(
 
         except HTTPException as e:
             logger.error(
-                "chat_http_error",
-                error=e.detail,
-                status_code=e.status_code,
-                user_id=str(user_id),
+                f"Chat HTTP error - Status: {e.status_code}, Detail: {e.detail}"
             )
             yield f"data: {json.dumps({'type': 'error', 'error': e.detail})}\n\n"
         except Exception as e:
             logger.error(
-                "chat_stream_error",
-                error=str(e),
-                error_type=type(e).__name__,
-                user_id=str(user_id),
+                f"Chat stream error - Type: {type(e).__name__}, Error: {str(e)}"
             )
             yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
 
