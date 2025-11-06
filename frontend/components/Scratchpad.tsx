@@ -354,7 +354,7 @@ export function Scratchpad() {
                       const isToday = entryDate.toDateString() === new Date().toDateString();
                       return (
                         <button
-                          key={index}
+                          key={entry.date}
                           onClick={() => {
                             if (!isToday) {
                               setViewingHistoryEntry(entry);
