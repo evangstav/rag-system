@@ -372,11 +372,12 @@ export function Scratchpad() {
                               setViewingHistoryEntry(entry);
                             }
                           }}
+                          disabled={isToday}
                           className={`w-full text-left p-3 rounded-md transition-all ${
                             viewingHistoryEntry?.date === entry.date
                               ? 'bg-violet-100 border-violet-300 border'
                               : 'bg-white hover:bg-slate-100 border border-slate-200'
-                          }`}
+                          } ${isToday ? 'cursor-not-allowed opacity-60' : ''}`}
                         >
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-medium text-slate-900">
