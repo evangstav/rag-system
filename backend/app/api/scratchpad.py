@@ -13,7 +13,7 @@ import uuid
 
 from app.dependencies import get_db, get_current_active_user
 from app.models.database import ScratchpadEntry, ScratchpadEntryType, User
-from app.models.schemas import ScratchpadData, TodoItem
+from app.models.schemas import ScratchpadData, TodoItem, JournalHistoryResponse, JournalEntryResponse
 
 router = APIRouter()
 
@@ -179,3 +179,56 @@ async def save_scratchpad(
     await db.commit()
 
     return {"status": "saved"}
+
+
+@router.get("/journal/history", response_model=JournalHistoryResponse)
+async def get_journal_history(
+    limit: int = 10,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Get the last N journal entries for the authenticated user.
+
+    Returns journal entries ordered by date (most recent first).
+    Defaults to 10 entries, maximum 50.
+
+    Requires authentication via JWT token.
+    """
+    user_id = current_user.id
+
+    # Limit to max 50 entries
+    limit = min(limit, 50)
+
+    # Fetch journal entries ordered by date descending
+    result = await db.execute(
+        select(ScratchpadEntry)
+        .where(
+            and_(
+                ScratchpadEntry.user_id == user_id,
+                ScratchpadEntry.entry_type == ScratchpadEntryType.JOURNAL,
+                ScratchpadEntry.entry_date.isnot(None),
+            )
+        )
+        .order_by(ScratchpadEntry.entry_date.desc())
+        .limit(limit)
+    )
+    entries = result.scalars().all()
+
+    # Format response
+    journal_entries = []
+    for entry in entries:
+        # Create a preview (first 100 characters)
+        preview = entry.content[:100]
+        if len(entry.content) > 100:
+            preview += "..."
+
+        journal_entries.append(
+            JournalEntryResponse(
+                date=entry.entry_date,
+                content=entry.content,
+                preview=preview,
+            )
+        )
+
+    return JournalHistoryResponse(entries=journal_entries)
