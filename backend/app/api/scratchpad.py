@@ -197,9 +197,6 @@ async def get_journal_history(
     """
     user_id = current_user.id
 
-    # Limit to max 50 entries
-    limit = min(limit, 50)
-
     # Fetch journal entries ordered by date descending
     result = await db.execute(
         select(ScratchpadEntry)
