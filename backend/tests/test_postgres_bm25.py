@@ -52,7 +52,7 @@ def sample_chunks() -> List[DocumentChunk]:
     ]
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="function")
 async def db_session():
     """Create a test database session with cleanup."""
     async with AsyncSessionLocal() as session:
@@ -65,13 +65,13 @@ async def db_session():
             await session.rollback()
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="function")
 async def collection_name():
     """Generate a unique collection name for each test."""
     return f"test_{uuid.uuid4().hex[:8]}"
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="function")
 async def postgres_bm25(db_session, sample_chunks, collection_name):
     """Create and populate PostgreSQL BM25 index with unique collection."""
     index = PostgresBM25Index(db_session)

@@ -21,9 +21,6 @@ from fastapi import (
 )
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-logger = logging.getLogger(__name__)
-
 from app.dependencies import get_current_active_user, get_db
 from app.models.database import (
     Document as DBDocument,
@@ -44,6 +41,7 @@ from app.models.schemas import (
 )
 from app.services.rag_service import RAGService
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Global RAG service instance (in production, use dependency injection)
@@ -229,6 +227,7 @@ async def process_document_background(
     from app.database import AsyncSessionLocal
 
     async with AsyncSessionLocal() as db:
+        doc = None
         try:
             # Get document from database
             result = await db.execute(
@@ -257,9 +256,10 @@ async def process_document_background(
         except Exception as e:
             # Mark document as failed
             logger.error(f"Failed to process document {document_id}: {e}")
-            doc.status = DocumentStatus.FAILED
-            doc.error_message = str(e)
-            await db.commit()
+            if doc:
+                doc.status = DocumentStatus.FAILED
+                doc.error_message = str(e)
+                await db.commit()
         finally:
             # Clean up temporary file
             if os.path.exists(file_path):
@@ -338,9 +338,9 @@ async def delete_document(
     # Delete from vector store
     if pool and document.status == DocumentStatus.COMPLETED:
         try:
-            await rag_service.vector_store.delete_by_metadata(
+            await rag_service.vector_store.delete_by_document_id(
                 collection_name=pool.collection_name,
-                filter_conditions={"document_id": str(document_id)},
+                document_id=str(document_id),
             )
         except Exception as e:
             # Log error but continue with database deletion

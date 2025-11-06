@@ -2,7 +2,7 @@
 
 ## ✅ Status: ALL WORKING!
 
-**42/42 tests passing (100%)** in 8.64 seconds
+**107/107 tests passing (100%)** in ~23 seconds
 
 ## Quick Commands
 
@@ -49,20 +49,44 @@ open htmlcov/index.html
 - User data isolation
 - Edge cases (markdown, unicode, long text)
 
+### ✅ Chat Streaming (12 tests)
+- SSE streaming responses
+- RAG context injection
+- Scratchpad context injection
+- Message persistence
+- Conversation management
+- Error handling
+
+### ✅ RAG System (32 tests)
+- Knowledge pool CRUD operations
+- Document upload (PDF, DOCX, TXT)
+- Document listing and deletion
+- Semantic search across pools
+- Background processing
+- Data isolation
+
+### ✅ Conversations (21 tests)
+- Conversation CRUD operations
+- Message retrieval
+- Pagination
+- Update toggles (RAG, scratchpad)
+- User data isolation
+
 ## Development Workflow
 
 1. **Make code change**
-2. **Run tests**: `uv run pytest` (8.64 seconds)
+2. **Run tests**: `uv run pytest` (~23 seconds)
 3. **If green**: Commit ✅
 4. **If red**: Fix immediately with fast feedback
 
 ## Key Features
 
-- ⚡ **8.64 seconds** for full test suite
+- ⚡ **~23 seconds** for 107 comprehensive tests
 - 🎯 **100%** pass rate
 - 🔒 **Isolated** - Uses in-memory SQLite
 - 🚀 **Mocked** - No external API calls
-- 📊 **Comprehensive** - Auth, CRUD, edge cases
+- 📊 **Comprehensive** - Auth, Chat, RAG, Conversations, Scratchpad
+- 🐛 **Bug Detection** - Found and fixed 3 production bugs!
 
 ## Troubleshooting
 

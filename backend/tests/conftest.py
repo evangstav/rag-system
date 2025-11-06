@@ -174,6 +174,21 @@ async def another_user(db_session: AsyncSession) -> User:
     return user
 
 
+@pytest_asyncio.fixture(scope="function")
+async def test_user_2(db_session: AsyncSession) -> User:
+    """Create a second test user for testing data isolation (alias for another_user)."""
+    user = User(
+        email="user2@example.com",
+        username="testuser2",
+        hashed_password=get_password_hash("testpass123"),
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
 # =============================================================================
 # Mock External Services
 # =============================================================================

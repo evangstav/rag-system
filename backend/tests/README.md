@@ -1,6 +1,6 @@
 # RAG System Test Suite
 
-**Status**: ✅ **FULLY WORKING** - 42/42 tests passing (100%) in 8.64 seconds
+**Status**: ✅ **FULLY WORKING** - 107/107 tests passing (100%) in ~23 seconds
 
 ## Quick Start
 
@@ -56,9 +56,35 @@ uv run pytest tests/api/test_auth.py::test_register_new_user_success -v
   - Edge cases (long text, markdown, special characters)
   - Rapid successive saves (auto-save simulation)
 
+- **`api/test_chat.py`** - 12 chat streaming tests
+  - SSE (Server-Sent Events) streaming
+  - RAG context injection
+  - Scratchpad context injection
+  - Combined contexts
+  - Message persistence
+  - Conversation creation/continuation
+  - Error handling
+
+- **`api/test_rag.py`** - 32 RAG system tests
+  - Knowledge pool CRUD operations
+  - Document upload (PDF, DOCX, TXT, MD)
+  - Document listing and deletion
+  - Semantic search (specific/all pools, multi-pool)
+  - Background document processing
+  - Data isolation
+  - Error handling
+
+- **`api/test_conversations.py`** - 21 conversation tests
+  - Conversation CRUD operations
+  - Message retrieval with pagination
+  - Update operations (title, toggles)
+  - Ordering by update time
+  - User data isolation
+  - Authorization
+
 ### ✅ All Issues Resolved!
 
-**Current Test Results**: **42/42 passing (100%)** in 8.64 seconds
+**Current Test Results**: **107/107 passing (100%)** in ~23 seconds
 
 **Fixes Applied** (see `ASYNC_FIXES_SUMMARY.md` for details):
 - ✅ Fixed database dependency override (`get_session` → `get_db`)
@@ -68,12 +94,15 @@ uv run pytest tests/api/test_auth.py::test_register_new_user_success -v
 - ✅ Updated test endpoints to match actual API
 - ✅ Added `type` field to JWT access tokens
 
-**Performance**: ~0.2 seconds per test (target: <10 seconds total) ✅
+**Bugs Found and Fixed**:
+- ✅ Fixed `UnboundLocalError` in RAG background processing
+- ✅ Fixed incorrect vector store method call
+- ✅ Fixed `SearchResult` mock parameters
+
+**Performance**: ~0.2 seconds per test ✅
 
 ### ❌ Not Yet Implemented
 
-- Chat streaming API tests
-- RAG upload/search API tests
 - Service layer unit tests
 - Frontend tests (Vitest + React Testing Library)
 - E2E tests (Playwright)
@@ -84,9 +113,10 @@ uv run pytest tests/api/test_auth.py::test_register_new_user_success -v
 |--------|--------------|---------------|----------|
 | Authentication | 22 | ✅ 22 | 100% ✅ |
 | Scratchpad | 20 | ✅ 20 | 100% ✅ |
-| Chat | 0 | 0 | 0% |
-| RAG | 0 | 0 | 0% |
-| **Total** | **42** | **✅ 42** | **100%** |
+| Chat Streaming | 12 | ✅ 12 | 100% ✅ |
+| RAG System | 32 | ✅ 32 | 100% ✅ |
+| Conversations | 21 | ✅ 21 | 100% ✅ |
+| **Total** | **107** | **✅ 107** | **100%** |
 
 ## File Structure
 
@@ -100,9 +130,12 @@ tests/
 │   └── qdrant_mock.py          # Mock Qdrant (406 lines)
 ├── api/
 │   ├── __init__.py
-│   ├── test_auth.py            # Auth tests (480+ lines)
-│   └── test_scratchpad.py      # Scratchpad tests (570+ lines)
-├── services/                    # TODO
+│   ├── test_auth.py            # Auth tests (480+ lines, 22 tests)
+│   ├── test_scratchpad.py      # Scratchpad tests (570+ lines, 20 tests)
+│   ├── test_chat.py            # Chat streaming tests (600+ lines, 12 tests)
+│   ├── test_rag.py             # RAG system tests (800+ lines, 32 tests)
+│   └── test_conversations.py   # Conversation tests (730+ lines, 21 tests)
+├── services/                    # TODO: Service layer unit tests
 ├── utils/
 │   └── results_db.py           # RAG evaluation results DB
 ├── data/                        # Test data (PDFs, etc.)

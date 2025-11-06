@@ -76,7 +76,7 @@ class TestBM25Index:
         await index.index_documents("test_collection", sample_chunks)
 
         # Verify index was created
-        assert index.has_collection("test_collection")
+        assert await index.has_collection("test_collection")
         assert index.get_collection_size("test_collection") == len(sample_chunks)
 
     @pytest.mark.asyncio
@@ -181,7 +181,7 @@ class TestBM25Index:
         """Test deleting entire collection."""
         await bm25_index.delete_collection("test_collection")
 
-        assert not bm25_index.has_collection("test_collection")
+        assert not await bm25_index.has_collection("test_collection")
         assert bm25_index.get_collection_size("test_collection") == 0
 
     @pytest.mark.asyncio
@@ -434,7 +434,7 @@ class TestEdgeCases:
         await index.index_documents("test_collection", [])
 
         # Should handle gracefully
-        assert not index.has_collection("test_collection")
+        assert not await index.has_collection("test_collection")
 
     @pytest.mark.asyncio
     async def test_special_characters_in_query(self, bm25_index):
