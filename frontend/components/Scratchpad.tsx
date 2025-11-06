@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/lib/auth-store';
 import RAGManager from './RAGManager';
 
@@ -127,7 +127,7 @@ export function Scratchpad() {
     setTodos(todos.filter((todo) => todo.id !== id));
   };
 
-  const loadJournalHistory = async () => {
+  const loadJournalHistory = useCallback(async () => {
     try {
       const response = await fetch('http://localhost:8000/api/scratchpad/journal/history?limit=10', {
         headers: {
@@ -141,14 +141,14 @@ export function Scratchpad() {
     } catch (error) {
       console.error('Failed to load journal history:', error);
     }
-  };
+  }, [accessToken]);
 
   // Load journal history when journal tab is selected
   useEffect(() => {
     if (accessToken && scratchpadSubTab === 'journal') {
       loadJournalHistory();
     }
-  }, [accessToken, scratchpadSubTab]);
+  }, [accessToken, scratchpadSubTab, loadJournalHistory]);
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-slate-50 to-white border-l border-slate-200">
