@@ -182,6 +182,18 @@ class ScratchpadData(BaseModel):
     journal: str = ""
 
 
+class JournalEntryResponse(BaseModel):
+    """Schema for individual journal entry in history."""
+    date: datetime
+    content: str
+    preview: str  # First 100 chars for display in list
+
+
+class JournalHistoryResponse(BaseModel):
+    """Schema for journal history responses."""
+    entries: List[JournalEntryResponse] = []
+
+
 # ============================================================================
 # Knowledge Pool Schemas
 # ============================================================================

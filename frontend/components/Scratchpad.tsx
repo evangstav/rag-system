@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/lib/auth-store';
 import RAGManager from './RAGManager';
 
@@ -16,6 +16,12 @@ interface ScratchpadData {
   journal: string;
 }
 
+interface JournalEntry {
+  date: string;
+  content: string;
+  preview: string;
+}
+
 export function Scratchpad() {
   const accessToken = useAuthStore((state) => state.accessToken);
   const [activeTab, setActiveTab] = useState<'scratchpad' | 'knowledge'>('scratchpad');
@@ -25,7 +31,22 @@ export function Scratchpad() {
   const [journal, setJournal] = useState('');
   const [newTodoText, setNewTodoText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [journalHistory, setJournalHistory] = useState<JournalEntry[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [viewingHistoryEntry, setViewingHistoryEntry] = useState<JournalEntry | null>(null);
 
+  // Reset showHistory when leaving the journal sub-tab
+  useEffect(() => {
+    if (scratchpadSubTab !== 'journal' && showHistory) {
+      setShowHistory(false);
+    }
+  }, [scratchpadSubTab, showHistory]);
+  // Reset viewingHistoryEntry when leaving the journal tab
+  useEffect(() => {
+    if (scratchpadSubTab !== 'journal' && viewingHistoryEntry !== null) {
+      setViewingHistoryEntry(null);
+    }
+  }, [scratchpadSubTab]);
   // Load scratchpad data on mount
   useEffect(() => {
     if (accessToken) {
@@ -105,6 +126,29 @@ export function Scratchpad() {
   const deleteTodo = (id: string) => {
     setTodos(todos.filter((todo) => todo.id !== id));
   };
+
+  const loadJournalHistory = useCallback(async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/scratchpad/journal/history?limit=10', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setJournalHistory(data.entries || []);
+      }
+    } catch (error) {
+      console.error('Failed to load journal history:', error);
+    }
+  }, [accessToken]);
+
+  // Load journal history when journal tab is selected
+  useEffect(() => {
+    if (accessToken && scratchpadSubTab === 'journal') {
+      loadJournalHistory();
+    }
+  }, [accessToken, scratchpadSubTab, loadJournalHistory]);
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-slate-50 to-white border-l border-slate-200">
@@ -277,26 +321,115 @@ export function Scratchpad() {
             )}
 
             {scratchpadSubTab === 'journal' && (
-              <div>
-                <div className="mb-4 pb-3 border-b border-slate-200">
+              <div className="space-y-4">
+                {/* Header with today's date and history toggle */}
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200">
                   <div className="flex items-center gap-2 text-sm text-slate-600">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    {new Date().toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
+                    {viewingHistoryEntry ? (
+                      new Date(viewingHistoryEntry.date).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })
+                    ) : (
+                      new Date().toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })
+                    )}
+                  </div>
+                  {journalHistory.length > 0 && (
+                    <button
+                      onClick={() => setShowHistory(!showHistory)}
+                      className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded-md transition-all"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {showHistory ? 'Hide History' : 'View History'}
+                    </button>
+                  )}
+                </div>
+
+                {/* History List (Collapsible) */}
+                {showHistory && journalHistory.length > 0 && (
+                  <div className="space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200 max-h-64 overflow-y-auto">
+                    <h3 className="text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wide">Past Entries</h3>
+                    {journalHistory.map((entry, index) => {
+                      const entryDate = new Date(entry.date);
+                      const isToday = entryDate.toDateString() === new Date().toDateString();
+                      return (
+                        <button
+                          key={entry.date}
+                          onClick={() => {
+                            if (!isToday) {
+                              setViewingHistoryEntry(entry);
+                            }
+                          }}
+                          disabled={isToday}
+                          className={`w-full text-left p-3 rounded-md transition-all ${
+                            viewingHistoryEntry?.date === entry.date
+                              ? 'bg-violet-100 border-violet-300 border'
+                              : 'bg-white hover:bg-slate-100 border border-slate-200'
+                          } ${isToday ? 'cursor-not-allowed opacity-60' : ''}`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-medium text-slate-900">
+                              {entryDate.toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                            </span>
+                            {isToday && (
+                              <span className="text-xs px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full font-medium">
+                                Today
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-600 line-clamp-2">{entry.preview}</p>
+                        </button>
+                      );
                     })}
                   </div>
-                </div>
+                )}
+
+                {/* Back to Today Button (when viewing history) */}
+                {viewingHistoryEntry && (
+                  <button
+                    onClick={() => setViewingHistoryEntry(null)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-lg transition-all"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    Back to Today
+                  </button>
+                )}
+
+                {/* Journal Textarea */}
                 <textarea
-                  value={journal}
-                  onChange={(e) => setJournal(e.target.value)}
-                  placeholder="What's on your mind today?"
-                  className="w-full h-[calc(100vh-360px)] px-4 py-3 text-sm text-slate-800 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none transition-all"
+                  value={viewingHistoryEntry ? viewingHistoryEntry.content : journal}
+                  onChange={(e) => {
+                    if (!viewingHistoryEntry) {
+                      setJournal(e.target.value);
+                    }
+                  }}
+                  placeholder={viewingHistoryEntry ? '' : "What's on your mind today?"}
+                  readOnly={!!viewingHistoryEntry}
+                  className={`w-full h-[calc(100vh-360px)] px-4 py-3 text-sm text-slate-800 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none transition-all ${
+                    viewingHistoryEntry ? 'cursor-default bg-slate-50' : ''
+                  }`}
                 />
+                {viewingHistoryEntry && (
+                  <p className="text-xs text-slate-500 italic">This is a past entry and cannot be edited.</p>
+                )}
               </div>
             )}
 
