@@ -2,6 +2,7 @@
  * API client for making authenticated requests to the backend
  */
 
+import { toast } from 'sonner';
 import { useAuthStore } from './auth-store';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -23,9 +24,9 @@ export async function apiRequest<T>(
   const accessToken = useAuthStore.getState().accessToken;
 
   // Build headers
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...fetchOptions.headers,
+    ...(fetchOptions.headers as Record<string, string>),
   };
 
   // Add authorization header if authenticated
@@ -63,6 +64,7 @@ export async function apiRequest<T>(
     } else {
       // Refresh failed, logout user
       useAuthStore.getState().logout();
+      toast.error('Session expired. Please login again.');
       window.location.href = '/login';
       throw new Error('Session expired. Please login again.');
     }

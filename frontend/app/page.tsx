@@ -3,6 +3,7 @@
 import { useChat } from '@ai-sdk/react';
 import { TextStreamChatTransport } from 'ai';
 import { useState, useRef, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Scratchpad } from '@/components/Scratchpad';
 import { AuthGuard } from '@/components/AuthGuard';
@@ -60,9 +61,12 @@ function ChatContent() {
               parts: [{ type: 'text', text: msg.content }],
             }));
             setMessages(formattedMessages);
+          } else {
+            toast.error('Failed to load messages');
           }
         } catch (error) {
           console.error('Failed to load messages:', error);
+          toast.error('Failed to load messages');
         }
       } else {
         // Clear messages if no conversation selected

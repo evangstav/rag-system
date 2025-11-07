@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/auth-store';
 
 export interface Conversation {
@@ -72,10 +73,12 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
       const conversations = await response.json();
       set({ conversations, isLoading: false });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       set({
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
         isLoading: false,
       });
+      toast.error(`Failed to load conversations: ${errorMessage}`);
     }
   },
 
@@ -103,12 +106,15 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
         isLoading: false,
       }));
 
+      toast.success('New conversation created');
       return newConversation.id;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       set({
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
         isLoading: false,
       });
+      toast.error(`Failed to create conversation: ${errorMessage}`);
       return null;
     }
   },
@@ -135,11 +141,15 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
           state.currentConversationId === id ? null : state.currentConversationId,
         isLoading: false,
       }));
+
+      toast.success('Conversation deleted');
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       set({
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
         isLoading: false,
       });
+      toast.error(`Failed to delete conversation: ${errorMessage}`);
     }
   },
 
@@ -167,11 +177,15 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
         ),
         isLoading: false,
       }));
+
+      toast.success('Conversation updated');
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       set({
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
         isLoading: false,
       });
+      toast.error(`Failed to update conversation: ${errorMessage}`);
     }
   },
 

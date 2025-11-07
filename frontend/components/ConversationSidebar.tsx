@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { useConversationStore } from '@/store/conversationStore';
 
 export function ConversationSidebar() {
@@ -35,9 +36,18 @@ export function ConversationSidebar() {
 
   const handleDeleteConversation = async (id: string, event: React.MouseEvent) => {
     event.stopPropagation(); // Prevent selecting the conversation
-    if (confirm('Are you sure you want to delete this conversation?')) {
-      await deleteConversation(id);
-    }
+
+    // Use toast with action for confirmation
+    toast('Are you sure you want to delete this conversation?', {
+      action: {
+        label: 'Delete',
+        onClick: () => deleteConversation(id),
+      },
+      cancel: {
+        label: 'Cancel',
+        onClick: () => {}, // Empty handler for cancel
+      },
+    });
   };
 
   const formatDate = (dateString: string) => {

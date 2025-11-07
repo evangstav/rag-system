@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { login } from '@/lib/api-client';
 
 export default function LoginPage() {
@@ -19,9 +20,12 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
+      toast.success('Successfully logged in! Redirecting...');
       router.push('/');
     } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      const errorMessage = err.message || 'Login failed. Please check your credentials.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

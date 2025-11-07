@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/auth-store';
 import RAGManager from './RAGManager';
 
@@ -76,9 +77,12 @@ export function Scratchpad() {
         setTodos(data.todos || []);
         setNotes(data.notes || '');
         setJournal(data.journal || '');
+      } else {
+        toast.error('Failed to load scratchpad');
       }
     } catch (error) {
       console.error('Failed to load scratchpad:', error);
+      toast.error('Failed to load scratchpad');
     }
   };
 
@@ -87,7 +91,7 @@ export function Scratchpad() {
 
     setIsSaving(true);
     try {
-      await fetch('http://localhost:8000/api/scratchpad', {
+      const response = await fetch('http://localhost:8000/api/scratchpad', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -95,8 +99,12 @@ export function Scratchpad() {
         },
         body: JSON.stringify({ todos, notes, journal }),
       });
+      if (!response.ok) {
+        toast.error('Failed to save scratchpad');
+      }
     } catch (error) {
       console.error('Failed to save scratchpad:', error);
+      toast.error('Failed to save scratchpad');
     } finally {
       setIsSaving(false);
     }
@@ -137,9 +145,12 @@ export function Scratchpad() {
       if (response.ok) {
         const data = await response.json();
         setJournalHistory(data.entries || []);
+      } else {
+        toast.error('Failed to load journal history');
       }
     } catch (error) {
       console.error('Failed to load journal history:', error);
+      toast.error('Failed to load journal history');
     }
   }, [accessToken]);
 

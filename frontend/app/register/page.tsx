@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { register } from '@/lib/api-client';
 
 export default function RegisterPage() {
@@ -20,13 +21,17 @@ export default function RegisterPage() {
 
     // Validate passwords match
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      const errorMessage = 'Passwords do not match';
+      setError(errorMessage);
+      toast.error(errorMessage);
       return;
     }
 
     // Validate password length
     if (password.length < 8) {
-      setError('Password must be at least 8 characters long');
+      const errorMessage = 'Password must be at least 8 characters long';
+      setError(errorMessage);
+      toast.error(errorMessage);
       return;
     }
 
@@ -34,9 +39,12 @@ export default function RegisterPage() {
 
     try {
       await register(email, username, password);
+      toast.success('Account created successfully! Redirecting...');
       router.push('/');
     } catch (err: any) {
-      setError(err.message || 'Registration failed. Please try again.');
+      const errorMessage = err.message || 'Registration failed. Please try again.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
