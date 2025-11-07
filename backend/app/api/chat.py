@@ -27,6 +27,7 @@ from app.models.database import (
 from app.models.schemas import ChatRequest
 from app.services.rag_service import RAGService
 from app.services.rag.text_splitter import TokenAwareSplitter
+from app.services.title_service import TitleGenerationService
 from app.config import settings
 import logging
 
@@ -36,6 +37,7 @@ logger = logging.getLogger(__name__)
 # Initialize clients
 client = AsyncOpenAI(api_key=settings.openai_api_key)
 rag_service = RAGService(text_splitter=TokenAwareSplitter())
+title_service = TitleGenerationService(openai_client=client)
 
 
 async def get_scratchpad_context(db: AsyncSession, user_id: UUID) -> str:
@@ -227,11 +229,12 @@ async def build_system_message(
             metadata["num_sources"] = len(sources)
 
     if context_parts:
+        context_text = "\n".join(context_parts)
         system_message = f"""{base_message}
 
 You have been provided with additional context to help answer the user's question. Use this context when relevant, but also apply your general knowledge.
 
-{"\n".join(context_parts)}
+{context_text}
 
 Remember to cite sources when using information from the retrieved knowledge."""
     else:
@@ -445,31 +448,20 @@ async def stream_chat(
                 or conversation.title.strip() == ""
                 or conversation.title == "None"
             ) and len(history_messages) == 0:
-                # Generate a concise title from the conversation
+                # Generate a concise title from the conversation using the title service
                 try:
-                    title_response = await client.chat.completions.create(
-                        model=model,
-                        messages=[
-                            {
-                                "role": "system",
-                                "content": "Generate a concise 3-5 word title for this conversation. Return only the title, no quotes or extra text.",
-                            },
-                            {"role": "user", "content": user_query},
-                            {"role": "assistant", "content": full_response},
-                        ],
-                        max_completion_tokens=50,
-                        temperature=0.7,
+                    generated_title = await title_service.generate_title(
+                        user_message=user_query,
+                        assistant_response=full_response,
+                        max_length=60,
+                        style="concise"
                     )
-                    generated_title = title_response.choices[0].message.content.strip()
-                    # Fallback to first 50 chars if generation fails
-                    conversation.title = (
-                        generated_title
-                        if generated_title
-                        else user_query[:50] + ("..." if len(user_query) > 50 else "")
-                    )
+                    conversation.title = generated_title
+                    logger.info(f"Generated title for conversation {conversation_id}: {generated_title}")
                 except Exception as e:
                     logger.error(f"Error generating title: {e}")
-                    # Fallback to first 50 chars
+                    # The title service has its own fallback, so this shouldn't happen
+                    # But just in case, provide a final fallback
                     conversation.title = user_query[:50] + (
                         "..." if len(user_query) > 50 else ""
                     )

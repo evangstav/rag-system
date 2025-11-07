@@ -11,15 +11,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.dependencies import get_current_user, get_db
-from app.models.database import Conversation, Message, User
+from app.models.database import Conversation, Message, MessageRole, User
 from app.models.schemas import (
     ConversationCreate,
     ConversationResponse,
     ConversationUpdate,
     MessageResponse,
 )
+from app.services.title_service import TitleGenerationService
 
 router = APIRouter()
+
+# Initialize title service
+title_service = TitleGenerationService()
 
 
 @router.get("/", response_model=List[ConversationResponse])
@@ -183,3 +187,75 @@ async def delete_conversation(
     await db.commit()
 
     return {"message": "Conversation deleted successfully", "id": str(conversation_id)}
+
+
+@router.post("/{conversation_id}/regenerate-title", response_model=ConversationResponse)
+async def regenerate_conversation_title(
+    conversation_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Regenerate the title for a conversation based on its first message exchange.
+
+    This endpoint allows users to manually trigger title generation for conversations
+    that may have generic titles or no title at all.
+    """
+    # Fetch the conversation
+    result = await db.execute(
+        select(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.user_id == user.id,
+        )
+    )
+    conversation = result.scalar_one_or_none()
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Fetch the first two messages (user and assistant)
+    result = await db.execute(
+        select(Message)
+        .where(Message.conversation_id == conversation_id)
+        .order_by(Message.created_at)
+        .limit(2)
+    )
+    messages = result.scalars().all()
+
+    if len(messages) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot generate title: conversation needs at least one exchange (user message + assistant response)"
+        )
+
+    # Ensure we have a user message and assistant response
+    if messages[0].role != MessageRole.USER or messages[1].role != MessageRole.ASSISTANT:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot generate title: first two messages must be user question and assistant response"
+        )
+
+    user_message = messages[0].content
+    assistant_response = messages[1].content
+
+    try:
+        # Generate new title
+        new_title = await title_service.generate_title(
+            user_message=user_message,
+            assistant_response=assistant_response,
+            max_length=100,  # Allow longer titles for manual regeneration
+            style="descriptive"  # Use descriptive style for manual regeneration
+        )
+
+        # Update conversation
+        conversation.title = new_title
+        await db.commit()
+        await db.refresh(conversation)
+
+        return conversation
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate title: {str(e)}"
+        )
