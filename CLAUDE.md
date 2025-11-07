@@ -6,11 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 RAG (Retrieval-Augmented Generation) chat system with scratchpad functionality. The system combines conversational AI with document retrieval and user note-taking capabilities.
 
-**Current Status**: Early scaffolding stage - only `main.py` and `pyproject.toml` exist.
+**Current Status**: Production-ready MVP with advanced RAG features including hybrid search, reranking, and deduplication.
 
 ## Tech Stack
 
-### Backend (Planned)
+### Backend (Implemented)
 
 - **Framework**: FastAPI with async/await
 - **Python**: 3.13+
@@ -19,7 +19,7 @@ RAG (Retrieval-Augmented Generation) chat system with scratchpad functionality. 
 - **Cache/Session**: Redis
 - **LLM Integration**: OpenAI/Anthropic via async clients
 
-### Frontend (Planned)
+### Frontend (Implemented)
 
 - **Framework**: Next.js 14+ with App Router
 - **UI**: Tailwind CSS + shadcn/ui
@@ -54,17 +54,19 @@ uv pip sync
 ### Run Application
 
 ```bash
-# Development
-python main.py
+# Backend development
+cd backend
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# Production (when FastAPI is added)
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+# Frontend development
+cd frontend
+npm run dev
 ```
 
 ### Docker Services
 
 ```bash
-# Start infrastructure (when docker-compose.yml exists)
+# Start infrastructure (PostgreSQL, Qdrant, Redis)
 docker-compose up -d
 
 # Stop services
@@ -74,17 +76,22 @@ docker-compose down
 ### Database
 
 ```bash
-# Run migrations (when Alembic is configured)
+# Run migrations
+cd backend
 alembic upgrade head
 
-# Create migration
+# Create new migration
 alembic revision --autogenerate -m "description"
 ```
 
 ### Testing
 
 ```bash
-# Run tests (when test suite exists)
+# Run RAG evaluation tests
+cd backend
+make test-rag
+
+# Run all tests
 pytest
 
 # With coverage
@@ -297,8 +304,10 @@ REDIS_URL=redis://localhost:6379
 
 See comprehensive implementation details in:
 
-- `docs/development/COMPLETE_DEVELOPMENT_GUIDE.md` - Full production architecture
+- `docs/architecture/ARCHITECTURE.md` - **System architecture overview**
+- `docs/architecture/BACKEND_SERVICES.md` - **RAG services documentation**
+- `docs/status/PROJECT_STATUS.md` - Current features and roadmap
+- `docs/development/COMPLETE_DEVELOPMENT_GUIDE.md` - Full development guide
 - `docs/guides/QUICK_START_GUIDE.md` - 2-hour MVP setup
 - `docs/reference/RAG_SYSTEM_SNIPPET_COLLECTION.md` - Code snippets
 - `docs/development/E2E_TESTING.md` - Automated testing framework
-- `docs/status/PROJECT_STATUS.md` - Current features and roadmap

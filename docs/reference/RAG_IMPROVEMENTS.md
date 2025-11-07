@@ -1,14 +1,50 @@
 # RAG System Improvements Analysis
 
-## Current Implementation Overview
+> **Note**: This document contains historical analysis from October 2024. Many issues listed here have since been resolved. See [Current Status](#current-status) section for what's been implemented.
 
-### Architecture
+---
+
+## Current Status (November 2024)
+
+### ✅ Implemented Improvements
+
+The following critical improvements have been successfully deployed:
+
+**Architecture**:
+```
+Document → Load → Chunk → Embed → Store (Qdrant + PostgreSQL BM25) → Hybrid Search → Rerank → Deduplicate → Retrieve
+```
+
+**Implemented Features**:
+- ✅ **Hybrid Search**: Semantic (Qdrant) + Keyword (PostgreSQL BM25) with RRF fusion
+- ✅ **Cross-Encoder Reranking**: `cross-encoder/ms-marco-MiniLM-L-6-v2`
+- ✅ **Deduplication**: MMR and token-based strategies
+- ✅ **PostgreSQL BM25**: Persistent keyword indexing with Full-Text Search
+- ✅ **Smart Text Splitting**: Hierarchical boundary-respecting chunking
+- ✅ **Multiple Document Loaders**: PDF, DOCX, TXT, MD, Web
+
+**Configuration**:
+- **Embedding**: OpenAI `text-embedding-3-small` (1536 dims)
+- **Chunking**: 1000 chars with 200 char overlap (smart hierarchical)
+- **Vector Store**: Qdrant with cosine similarity
+- **Keyword Search**: PostgreSQL Full-Text Search with GIN indexes
+- **Search**: Hybrid (semantic + keyword) with optional reranking and deduplication
+
+For detailed architecture documentation, see:
+- [Architecture Overview](../architecture/ARCHITECTURE.md)
+- [Backend Services Documentation](../architecture/BACKEND_SERVICES.md)
+
+---
+
+## Historical Analysis (October 2024)
+
+### Original Architecture Overview
 
 ```
 Document → Load → Chunk → Embed → Store (Qdrant) → Search (Cosine) → Retrieve
 ```
 
-### Current Configuration
+### Original Configuration
 
 - **Embedding**: OpenAI `text-embedding-3-small` (1536 dims)
 - **Chunking**: 1000 chars with 200 char overlap
@@ -17,7 +53,7 @@ Document → Load → Chunk → Embed → Store (Qdrant) → Search (Cosine) →
 
 ---
 
-## 🔴 Critical Issues
+## 🔴 Critical Issues (Historical - Most Resolved)
 
 ### 1. **Character-Based Chunking (Not Token-Based)**
 
@@ -31,7 +67,7 @@ Document → Load → Chunk → Embed → Store (Qdrant) → Search (Cosine) →
 
 ---
 
-### 2. **No Reranking**
+### 2. **No Reranking** ✅ RESOLVED
 
 **Problem**: Vector search alone has limitations:
 
@@ -41,9 +77,14 @@ Document → Load → Chunk → Embed → Store (Qdrant) → Search (Cosine) →
 
 **Impact**: Lower precision - relevant docs may be ranked poorly
 
+**✅ Resolution**: Cross-encoder reranking implemented in `backend/app/services/rag/reranker.py`
+- Uses `cross-encoder/ms-marco-MiniLM-L-6-v2` model
+- Re-scores top candidates for improved relevance
+- Configurable via `RAGService` initialization
+
 ---
 
-### 3. **Single Search Strategy (Semantic Only)**
+### 3. **Single Search Strategy (Semantic Only)** ✅ RESOLVED
 
 **Problem**: Pure vector search misses exact matches
 
@@ -52,6 +93,11 @@ Document → Load → Chunk → Embed → Store (Qdrant) → Search (Cosine) →
 - Vector embeddings can conflate similar concepts
 
 **Impact**: Poor recall on factual/exact-match queries
+
+**✅ Resolution**: Hybrid search implemented with:
+- PostgreSQL Full-Text Search (BM25) in `backend/app/services/rag/postgres_bm25.py`
+- Reciprocal Rank Fusion in `backend/app/services/rag/hybrid_search.py`
+- Configurable semantic/keyword weights via settings
 
 ---
 
@@ -99,13 +145,18 @@ Retrieved: [Full terms of service with embedded return policy paragraph]
 
 ---
 
-### 7. **No Deduplication**
+### 7. **No Deduplication** ✅ RESOLVED
 
 **Problem**: Similar chunks returned multiple times
 
 - Overlapping chunks (by design) can lead to redundancy
 - Similar content across documents
 - Wastes context and confuses LLM
+
+**✅ Resolution**: Deduplication implemented in `backend/app/services/rag/deduplication.py`
+- MMR (Maximal Marginal Relevance) for diversity
+- Token-based deduplication for exact/near duplicates
+- Configurable thresholds and strategies
 
 ---
 
@@ -155,7 +206,9 @@ Retrieved: [Full terms of service with embedded return policy paragraph]
 
 ## 📋 Recommended Improvements (Prioritized)
 
-## **Phase 1: Quick Wins (1-2 days)**
+> **Implementation Status**: Phase 1 (Hybrid Search + Reranking) has been completed. See [Current Status](#current-status) above.
+
+## **Phase 1: Quick Wins (1-2 days)** ✅ COMPLETED
 
 ### ✅ 1.1 Token-Based Chunking
 
@@ -185,7 +238,7 @@ chunk_size_tokens: int = 512  # tokens (GPT-4 compatible)
 
 ---
 
-### ✅ 1.2 Add Hybrid Search (Semantic + Keyword)
+### ✅ 1.2 Add Hybrid Search (Semantic + Keyword) ✅ IMPLEMENTED
 
 **Combine vector similarity with BM25 keyword search**
 
@@ -221,7 +274,7 @@ query → [Semantic Search (vector)] + [Keyword Search (BM25)] → Fusion → Re
 
 ---
 
-### ✅ 1.3 Basic Reranking
+### ✅ 1.3 Basic Reranking ✅ IMPLEMENTED
 
 **Add cross-encoder reranking for top results**
 

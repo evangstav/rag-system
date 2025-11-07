@@ -49,34 +49,53 @@ A comprehensive plan to implement advanced query rewriting strategies for improv
 
 ### 2. Retrieval Improvements (Reranking & Deduplication)
 
-**Status**: 📋 Ready for Implementation
-**Priority**: ⭐ High
-**Expected Impact**: +40-50% improvement in retrieval quality
-**Dependencies**: ✅ Hybrid search implemented (merged in main)
+**Status**: ✅ Deployed
+**Implementation Date**: October 2024
+**Measured Impact**: Successfully deployed with cross-encoder reranking and MMR deduplication
 
-Comprehensive proposal for improving RAG retrieval post-processing through reranking and deduplication.
+Comprehensive proposal and implementation for improving RAG retrieval post-processing through reranking and deduplication.
 
 **Documents**:
 - [**RAG Retrieval Improvement Proposal**](./RAG_RETRIEVAL_IMPROVEMENT_PROPOSAL.md) - Multi-stage retrieval pipeline with complete implementation code
-- [**Reranking & Deduplication Implementation**](./RERANKING_DEDUPLICATION_IMPLEMENTATION.md) - Day-by-day execution plan (3-4 days)
+- [**Reranking & Deduplication Implementation**](./archive/RERANKING_DEDUPLICATION_IMPLEMENTATION.md) - Completed implementation plan (archived)
 
-**Key Features**:
-- **Cross-encoder reranking** using state-of-the-art models (+30-40% precision)
-- **MMR deduplication** for result diversification (+8-12% precision)
-- **Feature flags** for gradual rollout (`ENABLE_RERANKING`, `ENABLE_MMR`)
-- **Multiple reranker options**: self-hosted, Cohere API, FlashRank
-- **Comprehensive testing**: unit tests, integration tests, A/B comparison
+**Implemented Features**:
+- ✅ **Cross-encoder reranking** using `cross-encoder/ms-marco-MiniLM-L-6-v2`
+- ✅ **MMR deduplication** for result diversification
+- ✅ **Token-based deduplication** as alternative strategy
+- ✅ **Feature flags** for configuration (`ENABLE_RERANKING`, configurable via settings)
+- ✅ **Multiple reranker options** supported via protocol pattern
 
-**Expected Metrics**:
-- Precision@5: 0.45 → 0.68 (+51%)
-- NDCG@5: 0.50 → 0.74 (+48%)
-- Latency: +200-300ms (acceptable)
+**Current Implementation**:
+- `backend/app/services/rag/reranker.py` - Cross-encoder reranking
+- `backend/app/services/rag/deduplication.py` - MMR and token-based deduplication
+- Integrated into `RAGService` with optional enable/disable
 
-**Timeline**: 3-4 days
-- Day 1: Configuration setup and core module implementation
-- Day 2: Integration with RAGService and comprehensive testing
-- Day 3: Evaluation and baseline comparison
-- Day 4: Optimization, tuning, and documentation
+---
+
+## Completed Plans (Archived)
+
+### 3. Hybrid Search (Semantic + BM25)
+
+**Status**: ✅ Deployed
+**Implementation Date**: October 2024
+
+Successfully implemented hybrid search combining semantic (Qdrant) and keyword (PostgreSQL BM25) search with Reciprocal Rank Fusion.
+
+**Documents**:
+- [**PostgreSQL BM25 Migration**](./archive/POSTGRES_BM25_MIGRATION.md) - Complete migration from in-memory to PostgreSQL-backed BM25
+
+**Implemented Features**:
+- ✅ **PostgreSQL Full-Text Search** with GIN indexes for persistent BM25
+- ✅ **Hybrid search service** combining semantic + keyword search
+- ✅ **Reciprocal Rank Fusion (RRF)** for result merging
+- ✅ **Configurable weights** for semantic vs keyword balance
+- ✅ **Automatic tsvector maintenance** via PostgreSQL triggers
+
+**Current Implementation**:
+- `backend/app/services/rag/postgres_bm25.py` - PostgreSQL BM25 index
+- `backend/app/services/rag/hybrid_search.py` - Hybrid search orchestration
+- `backend/app/models/database.py` - BM25Document model
 
 ---
 
