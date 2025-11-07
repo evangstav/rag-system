@@ -258,6 +258,8 @@ class RAGService:
         return {
             "num_chunks": len(chunks),
             "num_tokens": total_tokens,
+            "word_count": document.metadata.get("word_count"),
+            "page_count": document.metadata.get("page_count"),
             "status": "completed",
             "hybrid_search_enabled": self.enable_hybrid_search,
         }

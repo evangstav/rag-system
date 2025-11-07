@@ -80,6 +80,7 @@ class WebLoader(BaseDocumentLoader):
         full_metadata = self.build_metadata(source, metadata)
         full_metadata["mime_type"] = content_type
         full_metadata["source_type"] = "web"
+        full_metadata["word_count"] = self.calculate_word_count(text)
 
         # Extract title if available
         if soup.title:

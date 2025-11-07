@@ -27,6 +27,8 @@ export interface Document {
   error_message?: string;
   num_chunks: number;
   num_tokens?: number;
+  word_count?: number;
+  page_count?: number;
   metadata?: Record<string, any>;
   created_at: string;
   updated_at: string;

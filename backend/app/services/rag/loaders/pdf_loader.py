@@ -104,6 +104,8 @@ class PDFLoader(BaseDocumentLoader):
             full_metadata["mime_type"] = "application/pdf"
             full_metadata["num_pages"] = len(reader.pages)
             full_metadata["pages_extracted"] = len(pages_text)
+            full_metadata["word_count"] = self.calculate_word_count(content)
+            full_metadata["page_count"] = len(reader.pages)
 
             # Add warning if some pages failed
             if failed_pages:

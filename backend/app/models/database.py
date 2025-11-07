@@ -322,6 +322,8 @@ class Document(Base):
     # Statistics
     num_chunks: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     num_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    word_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    page_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # Metadata (extracted metadata, custom tags, etc.)
     extra_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)

@@ -74,6 +74,13 @@ class DocxLoader(BaseDocumentLoader):
         full_metadata["file_size"] = os.path.getsize(source)
         full_metadata["mime_type"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
+        # Calculate word count
+        word_count = self.calculate_word_count(content)
+        full_metadata["word_count"] = word_count
+
+        # Estimate page count (assuming ~250 words per page)
+        full_metadata["page_count"] = max(1, (word_count + 249) // 250)
+
         # Extract document properties if available
         core_properties = doc.core_properties
         doc_info = {}

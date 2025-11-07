@@ -250,6 +250,8 @@ async def process_document_background(
             # Update document with stats
             doc.num_chunks = stats["num_chunks"]
             doc.num_tokens = stats["num_tokens"]
+            doc.word_count = stats.get("word_count")
+            doc.page_count = stats.get("page_count")
             doc.status = DocumentStatus.COMPLETED
             await db.commit()
 

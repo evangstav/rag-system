@@ -87,6 +87,9 @@ class TextLoader(BaseDocumentLoader):
         # Add file size
         full_metadata["file_size"] = os.path.getsize(source)
 
+        # Calculate word count
+        full_metadata["word_count"] = self.calculate_word_count(content)
+
         # Add MIME type based on extension
         _, ext = os.path.splitext(source.lower())
         mime_types = {

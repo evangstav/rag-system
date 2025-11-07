@@ -265,6 +265,8 @@ class DocumentResponse(DocumentBase):
     error_message: Optional[str] = None
     num_chunks: int
     num_tokens: Optional[int] = None
+    word_count: Optional[int] = None
+    page_count: Optional[int] = None
     metadata: Optional[dict] = Field(None, validation_alias="extra_metadata")
     created_at: datetime
     updated_at: datetime

@@ -82,6 +82,11 @@ export default function DocumentList() {
     return date.toLocaleDateString();
   };
 
+  const formatNumber = (num?: number) => {
+    if (!num) return null;
+    return num.toLocaleString();
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Pool Selection */}
@@ -158,7 +163,7 @@ export default function DocumentList() {
                       </button>
                     </div>
 
-                    {/* Status Badge */}
+                    {/* Status Badge and Metadata */}
                     <div className="mt-1 flex items-center gap-2 flex-wrap">
                       <span
                         className={`inline-block px-2 py-0.5 text-xs font-medium rounded ${getStatusBadge(
@@ -170,6 +175,16 @@ export default function DocumentList() {
                       <span className="text-xs text-slate-500">
                         {formatBytes(doc.file_size)}
                       </span>
+                      {doc.page_count && doc.page_count > 0 && (
+                        <span className="text-xs text-slate-500">
+                          {formatNumber(doc.page_count)} {doc.page_count === 1 ? 'page' : 'pages'}
+                        </span>
+                      )}
+                      {doc.word_count && doc.word_count > 0 && (
+                        <span className="text-xs text-slate-500">
+                          {formatNumber(doc.word_count)} words
+                        </span>
+                      )}
                       {doc.num_chunks > 0 && (
                         <span className="text-xs text-slate-500">
                           {doc.num_chunks} chunks
@@ -177,7 +192,7 @@ export default function DocumentList() {
                       )}
                       {doc.num_tokens && doc.num_tokens > 0 && (
                         <span className="text-xs text-slate-500">
-                          {doc.num_tokens.toLocaleString()} tokens
+                          {formatNumber(doc.num_tokens)} tokens
                         </span>
                       )}
                     </div>

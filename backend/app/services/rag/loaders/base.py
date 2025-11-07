@@ -102,6 +102,20 @@ class BaseDocumentLoader(ABC):
         import os
         return os.path.basename(source)
 
+    def calculate_word_count(self, text: str) -> int:
+        """
+        Calculate the number of words in text.
+
+        Args:
+            text: Text to count words in
+
+        Returns:
+            Number of words
+        """
+        # Split on whitespace and count non-empty tokens
+        words = text.split()
+        return len(words)
+
     def build_metadata(
         self,
         source: str,
