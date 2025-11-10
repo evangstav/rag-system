@@ -1,6 +1,15 @@
 __pycache__
 .env
 .venv/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
 node_modules/
 .next/
 
@@ -9,3 +18,9 @@ node_modules/
 
 # Evaluation results (generated at runtime)
 backend/results/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/

@@ -323,6 +323,7 @@ class ChatRequest(BaseModel):
     conversation_id: Optional[UUID] = None
     use_rag: bool = False
     use_scratchpad: bool = False
+    use_memory: bool = True  # Memory enabled by default
     knowledge_pool_ids: Optional[List[UUID]] = None
     stream: bool = True
 

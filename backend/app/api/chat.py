@@ -4,7 +4,7 @@ Chat API endpoints with context injection support.
 Handles streaming chat with RAG and scratchpad context injection.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +26,7 @@ from app.models.database import (
 )
 from app.models.schemas import ChatRequest
 from app.services.rag_service import RAGService
+from app.services.memory_service import MemoryService
 from app.services.rag.text_splitter import TokenAwareSplitter
 from app.config import settings
 import logging
@@ -36,6 +37,37 @@ logger = logging.getLogger(__name__)
 # Initialize clients
 client = AsyncOpenAI(api_key=settings.openai_api_key)
 rag_service = RAGService(text_splitter=TokenAwareSplitter())
+
+
+async def get_memory_context(db: AsyncSession, user_id: UUID, query: str) -> str:
+    """
+    Retrieve and format user memories for context injection.
+
+    Returns a formatted string of relevant user memories.
+    """
+    if not settings.enable_memory:
+        return ""
+
+    memory_service = MemoryService(db=db)
+
+    # Retrieve relevant memories
+    memories = await memory_service.retrieve_memories(
+        user_id=user_id,
+        query=query,
+        limit=settings.memory_retrieval_limit,
+    )
+
+    if not memories:
+        return ""
+
+    # Format memories
+    memory_lines = ["**User Context & Preferences:**"]
+    for memory in memories:
+        # Add importance indicator
+        importance_marker = "⭐" if memory.importance >= 0.7 else "•"
+        memory_lines.append(f"  {importance_marker} {memory.content}")
+
+    return "\n".join(memory_lines)
 
 
 async def get_scratchpad_context(db: AsyncSession, user_id: UUID) -> str:
@@ -187,6 +219,7 @@ async def build_system_message(
     user_query: str,
     use_rag: bool = False,
     use_scratchpad: bool = False,
+    use_memory: bool = True,
     knowledge_pool_ids: list[UUID] | None = None,
 ) -> tuple[str, dict]:
     """
@@ -200,6 +233,7 @@ async def build_system_message(
         "building_system_message",
         use_rag=use_rag,
         use_scratchpad=use_scratchpad,
+        use_memory=use_memory,
         user_id=str(user_id),
     )
 
@@ -207,6 +241,14 @@ async def build_system_message(
 
     context_parts = []
     metadata = {}
+
+    # Add memory context (first, as it's most important for personalization)
+    if use_memory:
+        memory_context = await get_memory_context(db, user_id, user_query)
+        if memory_context:
+            context_parts.append(memory_context)
+            metadata["memory_included"] = True
+            logger.info("memory_context_added", length=len(memory_context))
 
     # Add scratchpad context
     if use_scratchpad:
@@ -242,6 +284,7 @@ Remember to cite sources when using information from the retrieved knowledge."""
         message_length=len(system_message),
         has_rag=bool(metadata.get("rag_sources")),
         has_scratchpad=metadata.get("scratchpad_included", False),
+        has_memory=metadata.get("memory_included", False),
     )
 
     return system_message, metadata
@@ -250,6 +293,7 @@ Remember to cite sources when using information from the retrieved knowledge."""
 @router.post("/stream")
 async def stream_chat(
     request: ChatRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
@@ -337,6 +381,7 @@ async def stream_chat(
                 user_query=user_query,
                 use_rag=request.use_rag,
                 use_scratchpad=request.use_scratchpad,
+                use_memory=request.use_memory,
                 knowledge_pool_ids=request.knowledge_pool_ids,
             )
 
@@ -476,6 +521,15 @@ async def stream_chat(
 
             await db.commit()
 
+            # Extract memories in background (if memory enabled)
+            if request.use_memory and settings.enable_memory:
+                logger.info(f"Scheduling memory extraction for conversation: {conversation_id}")
+                background_tasks.add_task(
+                    _extract_memories_background,
+                    conversation_id=conversation_id,
+                    user_id=user_id,
+                )
+
             # Calculate total duration
             total_duration_ms = (time.perf_counter() - start_time) * 1000
 
@@ -508,3 +562,40 @@ async def stream_chat(
             "X-Accel-Buffering": "no",  # Disable nginx buffering
         },
     )
+
+
+async def _extract_memories_background(conversation_id: UUID, user_id: UUID):
+    """
+    Background task to extract memories from a conversation.
+
+    This runs after the chat response is sent to avoid adding latency.
+    """
+    try:
+        logger.info(f"Starting memory extraction for conversation: {conversation_id}")
+
+        # Create a new database session for background task
+        from app.database import AsyncSessionLocal
+
+        async with AsyncSessionLocal() as db:
+            memory_service = MemoryService(db=db)
+
+            # Extract memories
+            memories = await memory_service.extract_memories_from_conversation(
+                conversation_id=conversation_id,
+                user_id=user_id,
+                limit_messages=20,
+            )
+
+            if memories:
+                logger.info(
+                    f"Extracted {len(memories)} memories from conversation: {conversation_id}"
+                )
+            else:
+                logger.info(
+                    f"No new memories extracted from conversation: {conversation_id}"
+                )
+
+    except Exception as e:
+        logger.error(
+            f"Memory extraction failed for conversation {conversation_id}: {type(e).__name__}: {str(e)}"
+        )

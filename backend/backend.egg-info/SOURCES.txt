@@ -8,6 +8,7 @@ app/main.py
 app/api/auth.py
 app/api/chat.py
 app/api/conversations.py
+app/api/memory.py
 app/api/rag.py
 app/api/scratchpad.py
 app/evaluation/__init__.py
@@ -21,6 +22,7 @@ app/models/__init__.py
 app/models/database.py
 app/models/schemas.py
 app/services/__init__.py
+app/services/memory_service.py
 app/services/rag_service.py
 app/services/rag/__init__.py
 app/services/rag/bm25_index.py
@@ -45,4 +47,5 @@ backend.egg-info/requires.txt
 backend.egg-info/top_level.txt
 tests/test_config_validation.py
 tests/test_hybrid_search.py
+tests/test_memory_service.py
 tests/test_postgres_bm25.py

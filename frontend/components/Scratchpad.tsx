@@ -22,10 +22,18 @@ interface JournalEntry {
   preview: string;
 }
 
+interface Memory {
+  id: string;
+  content: string;
+  importance: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export function Scratchpad() {
   const accessToken = useAuthStore((state) => state.accessToken);
   const [activeTab, setActiveTab] = useState<'scratchpad' | 'knowledge'>('scratchpad');
-  const [scratchpadSubTab, setScratchpadSubTab] = useState<'todos' | 'notes' | 'journal'>('todos');
+  const [scratchpadSubTab, setScratchpadSubTab] = useState<'todos' | 'notes' | 'journal' | 'memories'>('todos');
   const [todos, setTodos] = useState<Todo[]>([]);
   const [notes, setNotes] = useState('');
   const [journal, setJournal] = useState('');
@@ -34,6 +42,9 @@ export function Scratchpad() {
   const [journalHistory, setJournalHistory] = useState<JournalEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [viewingHistoryEntry, setViewingHistoryEntry] = useState<JournalEntry | null>(null);
+  const [memories, setMemories] = useState<Memory[]>([]);
+  const [isLoadingMemories, setIsLoadingMemories] = useState(false);
+  const [isExtractingFromJournal, setIsExtractingFromJournal] = useState(false);
 
   // Reset showHistory when leaving the journal sub-tab
   useEffect(() => {
@@ -150,6 +161,74 @@ export function Scratchpad() {
     }
   }, [accessToken, scratchpadSubTab, loadJournalHistory]);
 
+  // Load memories when memories tab is selected
+  useEffect(() => {
+    if (accessToken && scratchpadSubTab === 'memories') {
+      loadMemories();
+    }
+  }, [accessToken, scratchpadSubTab]);
+
+  const loadMemories = async () => {
+    setIsLoadingMemories(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/memory/', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMemories(data || []);
+      }
+    } catch (error) {
+      console.error('Failed to load memories:', error);
+    } finally {
+      setIsLoadingMemories(false);
+    }
+  };
+
+  const deleteMemory = async (id: string) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/memory/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      if (response.ok) {
+        setMemories(memories.filter(m => m.id !== id));
+      }
+    } catch (error) {
+      console.error('Failed to delete memory:', error);
+    }
+  };
+
+  const extractFromJournal = async () => {
+    setIsExtractingFromJournal(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/memory/extract/journal?days_back=7', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      if (response.ok) {
+        const newMemories = await response.json();
+        if (newMemories && newMemories.length > 0) {
+          alert(`Extracted ${newMemories.length} memories from your journal!`);
+          loadMemories(); // Reload to get all memories
+        } else {
+          alert('No new memories found in recent journal entries.');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to extract from journal:', error);
+      alert('Failed to extract memories from journal.');
+    } finally {
+      setIsExtractingFromJournal(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-slate-50 to-white border-l border-slate-200">
       {/* Header */}
@@ -234,6 +313,16 @@ export function Scratchpad() {
               }`}
             >
               Notes
+            </button>
+            <button
+              onClick={() => setScratchpadSubTab('memories')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                scratchpadSubTab === 'memories'
+                  ? 'bg-violet-100 text-violet-700'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              Memories
             </button>
           </div>
         </div>
@@ -441,6 +530,105 @@ export function Scratchpad() {
                   placeholder="Write your notes here..."
                   className="w-full h-[calc(100vh-320px)] px-4 py-3 text-sm text-slate-800 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none transition-all"
                 />
+              </div>
+            )}
+
+            {scratchpadSubTab === 'memories' && (
+              <div className="space-y-4">
+                {/* Header with actions */}
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900">Your Memories</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      AI automatically remembers your preferences and context
+                    </p>
+                  </div>
+                  <button
+                    onClick={extractFromJournal}
+                    disabled={isExtractingFromJournal}
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    {isExtractingFromJournal ? 'Extracting...' : 'Extract from Journal'}
+                  </button>
+                </div>
+
+                {/* Memories list */}
+                {isLoadingMemories ? (
+                  <div className="text-center py-12">
+                    <div className="inline-block w-8 h-8 border-3 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
+                    <p className="text-sm text-slate-500 mt-3">Loading memories...</p>
+                  </div>
+                ) : memories.length === 0 ? (
+                  <div className="text-center py-12">
+                    <svg className="w-12 h-12 mx-auto text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    <p className="text-sm text-slate-400">No memories yet</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Chat with the AI or extract from your journal to build memories
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[calc(100vh-380px)] overflow-y-auto">
+                    {memories
+                      .sort((a, b) => b.importance - a.importance)
+                      .map((memory) => (
+                        <div
+                          key={memory.id}
+                          className="p-3 bg-white rounded-lg border border-slate-200 hover:border-violet-300 hover:shadow-sm transition-all group"
+                        >
+                          <div className="flex items-start gap-3">
+                            {/* Importance indicator */}
+                            <div className="flex-shrink-0 mt-0.5">
+                              {memory.importance >= 0.8 ? (
+                                <span className="text-yellow-500" title={`Importance: ${(memory.importance * 100).toFixed(0)}%`}>⭐</span>
+                              ) : memory.importance >= 0.6 ? (
+                                <span className="text-violet-500" title={`Importance: ${(memory.importance * 100).toFixed(0)}%`}>●</span>
+                              ) : (
+                                <span className="text-slate-400" title={`Importance: ${(memory.importance * 100).toFixed(0)}%`}>○</span>
+                              )}
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-slate-700 leading-relaxed">{memory.content}</p>
+                              <p className="text-xs text-slate-400 mt-1">
+                                {new Date(memory.updated_at).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </p>
+                            </div>
+
+                            {/* Delete button */}
+                            <button
+                              onClick={() => deleteMemory(memory.id)}
+                              className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 hover:bg-red-50 rounded transition-all"
+                              aria-label="Delete memory"
+                            >
+                              <svg
+                                className="w-4 h-4 text-slate-400 hover:text-red-500"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
               </div>
             )}
           </>

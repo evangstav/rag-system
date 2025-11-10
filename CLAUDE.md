@@ -27,6 +27,26 @@ RAG (Retrieval-Augmented Generation) chat system with scratchpad functionality. 
 - **Streaming**: Vercel AI SDK (`ai` package)
 - **Layout**: `react-resizable-panels` for split-pane interface
 
+## Project Structure
+
+This is a **monorepo** with separate backend (Python/FastAPI) and frontend (Next.js) projects:
+
+```
+rag-system/
+├── backend/              # Python FastAPI backend (ONLY Python project)
+│   ├── pyproject.toml   # Python dependencies
+│   ├── .venv/           # Python virtual environment
+│   ├── app/             # Application code
+│   ├── alembic/         # Database migrations
+│   └── tests/           # Backend tests
+└── frontend/            # Next.js frontend
+    ├── package.json     # Node dependencies
+    ├── node_modules/    # Node modules
+    └── components/      # React components
+```
+
+**Important**: There is **NO** root Python project. The `backend/` directory is the **ONLY** Python project. Always `cd backend` before running Python commands.
+
 ## Package Management
 
 **IMPORTANT**: This project uses `uv` for Python package management.
@@ -34,21 +54,24 @@ RAG (Retrieval-Augmented Generation) chat system with scratchpad functionality. 
 - **Always use `uv pip install` instead of `pip install`**
 - `uv` is faster and more reliable than standard pip
 - All dependency commands in this project assume `uv` is being used
+- **Always run from the `backend/` directory**
 
 ## Development Commands
 
 ### Setup
 
 ```bash
-# Install dependencies (REQUIRED: use uv)
+# Install backend dependencies (REQUIRED: use uv)
 cd backend
 uv pip install -e .
 
-# Install individual packages
-uv pip install package-name
+# Install dev dependencies (includes pytest, etc.)
+cd backend
+uv pip install -e ".[dev]"
 
-# Sync with pyproject.toml
-uv pip sync
+# Install individual packages
+cd backend
+uv pip install package-name
 ```
 
 ### Run Application

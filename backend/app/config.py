@@ -138,6 +138,48 @@ class Settings(BaseSettings):
     max_tokens: int = Field(default=4000, alias="MAX_TOKENS")
     temperature: float = Field(default=0.7, alias="TEMPERATURE")
 
+    # Memory System settings
+    enable_memory: bool = Field(
+        default=True,
+        alias="ENABLE_MEMORY",
+        description="Enable user memory extraction and retrieval",
+    )
+    memory_collection_name: str = Field(
+        default="user_memories",
+        alias="MEMORY_COLLECTION_NAME",
+        description="Qdrant collection name for user memories",
+    )
+    memory_retrieval_limit: int = Field(
+        default=10,
+        alias="MEMORY_RETRIEVAL_LIMIT",
+        description="Max number of memories to retrieve for context",
+    )
+    memory_similarity_threshold: float = Field(
+        default=0.85,
+        alias="MEMORY_SIMILARITY_THRESHOLD",
+        description="Similarity threshold for detecting duplicate memories (0-1)",
+    )
+    memory_extraction_model: str = Field(
+        default="gpt-4-turbo-preview",
+        alias="MEMORY_EXTRACTION_MODEL",
+        description="LLM model to use for memory extraction",
+    )
+    memory_semantic_weight: float = Field(
+        default=0.6,
+        alias="MEMORY_SEMANTIC_WEIGHT",
+        description="Weight for semantic similarity in memory scoring",
+    )
+    memory_recency_weight: float = Field(
+        default=0.25,
+        alias="MEMORY_RECENCY_WEIGHT",
+        description="Weight for recency in memory scoring",
+    )
+    memory_importance_weight: float = Field(
+        default=0.15,
+        alias="MEMORY_IMPORTANCE_WEIGHT",
+        description="Weight for importance in memory scoring",
+    )
+
     # Validators
 
     @field_validator("bm25_backend")
