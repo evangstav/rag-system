@@ -300,8 +300,10 @@ class MemoryService:
             print(f"Failed to generate embedding for memory: {e}")
             return None
 
-        # Store in Qdrant using direct client API with custom ID
-        qdrant_id = f"mem_{user_id}_{datetime.utcnow().timestamp()}"
+        # Store in Qdrant using direct client API with UUID
+        # Generate a unique UUID for this memory point
+        from uuid import uuid4
+        qdrant_id = str(uuid4())
 
         try:
             from qdrant_client.models import PointStruct

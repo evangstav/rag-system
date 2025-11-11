@@ -367,7 +367,9 @@ async def test_add_memory_success(
     assert memory.content == "User prefers Python for backend development"
     assert memory.importance == 0.8
     assert memory.qdrant_id is not None
-    assert memory.qdrant_id.startswith("mem_")
+    # Verify it's a valid UUID string
+    from uuid import UUID
+    UUID(memory.qdrant_id)  # Will raise ValueError if not a valid UUID
 
 
 @pytest.mark.asyncio
