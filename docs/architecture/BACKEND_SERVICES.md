@@ -1,14 +1,15 @@
-# Backend RAG Services Documentation
+# Backend Services Documentation
 
-**Last Updated:** November 7, 2024
+**Last Updated:** November 10, 2025
 
-This document provides detailed documentation for all RAG-related backend services and components.
+This document provides detailed documentation for all RAG-related and memory system backend services and components.
 
 ---
 
 ## Table of Contents
 
 - [Overview](#overview)
+- [Memory Service](#memory-service) ⭐ **NEW**
 - [RAG Service Orchestrator](#rag-service-orchestrator)
 - [Embeddings Service](#embeddings-service)
 - [Vector Store Service](#vector-store-service)
@@ -30,6 +31,11 @@ The RAG system is built with a **provider pattern** architecture, allowing compo
 ### Component Hierarchy
 
 ```
+MemoryService (Intelligent User Memory)
+├── EmbeddingProvider (OpenAI)
+├── VectorStore (Qdrant - user_memories collection)
+└── LLM (GPT-4 Turbo for extraction)
+
 RAGService (Orchestrator)
 ├── EmbeddingProvider (OpenAI)
 ├── VectorStore (Qdrant)
@@ -41,6 +47,272 @@ RAGService (Orchestrator)
 ├── Deduplicator (MMR + Token-based)
 └── DocumentLoaders (PDF, DOCX, Text, Web)
 ```
+
+---
+
+## Memory Service
+
+**File:** `backend/app/services/memory_service.py`
+
+The memory service intelligently extracts, stores, and retrieves user preferences, facts, and context from conversations and journal entries.
+
+### Overview
+
+The memory system enables personalized, context-aware responses by:
+- Automatically extracting important facts from conversations and journal entries
+- Storing memories with semantic embeddings in Qdrant
+- Retrieving relevant memories based on multi-factor scoring
+- Deduplicating similar memories to avoid redundancy
+- Injecting memory context into chat sessions
+
+### Initialization
+
+```python
+from app.services.memory_service import MemoryService
+from app.database import get_session
+
+async with get_session() as db:
+    memory_service = MemoryService(db=db)
+```
+
+### Key Methods
+
+#### `add_memory()`
+
+Manually add a user memory.
+
+```python
+memory = await memory_service.add_memory(
+    user_id=user.id,
+    content="User prefers Python for backend development",
+    importance=0.8,  # 0.0-1.0 importance score
+    category="preference",  # preference, fact, goal, context
+    source_conversation_id=conversation_id  # Optional
+)
+```
+
+**Process:**
+1. Generate embedding for memory content
+2. Check for similar existing memories (deduplication)
+3. Store in PostgreSQL (`user_memories` table)
+4. Store embedding in Qdrant (`user_memories` collection)
+5. Return created/updated memory
+
+#### `retrieve_memories()`
+
+Retrieve relevant memories for a query.
+
+```python
+memories = await memory_service.retrieve_memories(
+    user_id=user.id,
+    query="What programming languages does the user know?",
+    limit=10
+)
+```
+
+**Multi-Factor Scoring:**
+```python
+final_score = (
+    semantic_weight * semantic_similarity +
+    recency_weight * recency_score +
+    importance_weight * importance_score
+)
+```
+
+Default weights:
+- Semantic: 0.6
+- Recency: 0.25
+- Importance: 0.15
+
+#### `extract_memories_from_conversation()`
+
+Automatically extract memories from conversation history using LLM.
+
+```python
+new_memories = await memory_service.extract_memories_from_conversation(
+    conversation_id=conversation.id,
+    user_id=user.id,
+    limit_messages=20  # Analyze last 20 messages
+)
+```
+
+**Process:**
+1. Fetch recent conversation messages
+2. Get existing memories for context (avoid duplicates)
+3. Call GPT-4 with extraction prompt
+4. Parse JSON response with extracted memories
+5. Store each memory (with automatic deduplication)
+
+#### `extract_memories_from_journal()`
+
+Extract memories from journal entries.
+
+```python
+new_memories = await memory_service.extract_memories_from_journal(
+    user_id=user.id,
+    days_back=7  # Analyze last 7 days
+)
+```
+
+**Process:**
+1. Fetch recent journal entries
+2. Combine entries with date headers
+3. Call GPT-4 for extraction
+4. Store extracted memories
+
+#### `update_memory()`
+
+Update memory content or importance.
+
+```python
+updated = await memory_service.update_memory(
+    memory_id=memory.id,
+    user_id=user.id,
+    content="Updated content",
+    importance=0.9
+)
+```
+
+#### `delete_memory()`
+
+Delete a specific memory.
+
+```python
+success = await memory_service.delete_memory(
+    memory_id=memory.id,
+    user_id=user.id
+)
+```
+
+### Memory Deduplication
+
+The service automatically prevents duplicate memories using semantic similarity:
+
+```python
+# In add_memory()
+similar_memory = await self._find_similar_memory(
+    user_id=user_id,
+    content=content,
+    embedding=embedding
+)
+
+if similar_memory and similarity > threshold:
+    # Update existing memory instead of creating new one
+    return await self.update_memory(...)
+```
+
+**Threshold:** 0.85 (configurable via `MEMORY_SIMILARITY_THRESHOLD`)
+
+### Configuration
+
+All memory settings are in `backend/app/config.py`:
+
+```python
+# Memory System settings
+ENABLE_MEMORY: bool = True
+MEMORY_COLLECTION_NAME: str = "user_memories"
+MEMORY_RETRIEVAL_LIMIT: int = 10
+MEMORY_SIMILARITY_THRESHOLD: float = 0.85
+MEMORY_EXTRACTION_MODEL: str = "gpt-4-turbo-preview"
+
+# Memory scoring weights
+MEMORY_SEMANTIC_WEIGHT: float = 0.6
+MEMORY_RECENCY_WEIGHT: float = 0.25
+MEMORY_IMPORTANCE_WEIGHT: float = 0.15
+```
+
+### Usage in Chat
+
+Memories are automatically injected into chat context:
+
+```python
+# In chat API (api/chat.py)
+if use_memory:
+    memory_context = await get_memory_context(
+        db=db,
+        user_id=user.id,
+        query=user_query
+    )
+    # memory_context is formatted and added to system message
+```
+
+### Database Schema
+
+```sql
+CREATE TABLE user_memories (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    content TEXT NOT NULL,
+    importance FLOAT DEFAULT 0.5,
+    category VARCHAR(50),
+    qdrant_id VARCHAR(255) UNIQUE,
+    source_conversation_id UUID,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (source_conversation_id) REFERENCES conversations(id)
+);
+
+-- Indexes for performance
+CREATE INDEX idx_user_memories_user_id ON user_memories(user_id);
+CREATE INDEX idx_user_memories_importance ON user_memories(importance DESC);
+CREATE INDEX idx_user_memories_updated_at ON user_memories(updated_at DESC);
+```
+
+### API Endpoints
+
+**File:** `backend/app/api/memory.py`
+
+```python
+# List memories
+GET /api/memory/?limit=100
+
+# Create memory
+POST /api/memory/
+{
+  "content": "User prefers Python",
+  "importance": 0.8,
+  "category": "preference"
+}
+
+# Update memory
+PUT /api/memory/{memory_id}?content=New+content&importance=0.9
+
+# Delete memory
+DELETE /api/memory/{memory_id}
+
+# Delete all memories
+DELETE /api/memory/
+
+# Extract from conversation
+POST /api/memory/extract/conversation/{conversation_id}
+
+# Extract from journal
+POST /api/memory/extract/journal?days_back=7
+
+# Search memories
+GET /api/memory/search?query=programming&limit=10
+```
+
+### Testing
+
+Comprehensive test suite in `backend/tests/`:
+
+```bash
+# Run memory tests
+pytest tests/test_memory_service.py  # 26 tests
+pytest tests/api/test_memory.py      # 26 tests
+
+# All 52 tests passing ✅
+```
+
+### Performance Considerations
+
+1. **Batch Extraction:** Extract from multiple journal entries at once
+2. **Deduplication:** Prevents memory bloat (threshold: 0.85 similarity)
+3. **Caching:** Retrieved memories include timestamps for recency scoring
+4. **Indexing:** PostgreSQL indexes on user_id, importance, updated_at
+5. **Qdrant Storage:** UUID-based point IDs for efficient updates
 
 ---
 

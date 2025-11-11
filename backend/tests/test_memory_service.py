@@ -369,6 +369,7 @@ async def test_add_memory_success(
     assert memory.qdrant_id is not None
     # Verify it's a valid UUID string
     from uuid import UUID
+
     UUID(memory.qdrant_id)  # Will raise ValueError if not a valid UUID
 
 

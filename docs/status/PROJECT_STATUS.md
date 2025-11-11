@@ -1,7 +1,7 @@
 # RAG System - Project Status & Next Steps
 
-**Last Updated:** November 7, 2024
-**Current Version:** Production-Ready MVP with Advanced RAG Features
+**Last Updated:** November 10, 2025
+**Current Version:** Production-Ready MVP with Advanced RAG + Memory System
 
 ---
 
@@ -28,6 +28,10 @@
 - [x] Multi-pool search support
 - [x] User isolation (all data scoped to user_id)
 - [x] **RAG evaluation framework** with standard IR metrics
+- [x] **Memory system** with automatic extraction from conversations and journal
+- [x] **Memory retrieval** with multi-factor scoring (semantic + recency + importance)
+- [x] **Memory deduplication** using semantic similarity
+- [x] **Memory management API** (CRUD operations, search, extraction)
 
 #### **Frontend (Next.js 15 + Tailwind + Zustand)**
 
@@ -36,7 +40,8 @@
 - [x] Resizable panels with `react-resizable-panels`
 - [x] Conversation sidebar with create/delete
 - [x] Streaming chat with AI (SSE)
-- [x] Scratchpad with 4 tabs: Todos, Notes, Journal, **RAG**
+- [x] Scratchpad with 5 tabs: Todos, Notes, Journal, **Memories**, **RAG**
+- [x] **Memories tab** with extraction controls and memory list
 - [x] RAG tab with sub-tabs: Pools, Upload, Documents
 - [x] Knowledge pool creation and management
 - [x] Drag-and-drop document upload
@@ -70,10 +75,10 @@
 - [ ] No retry logic for failed uploads
 - [ ] No batch upload optimization
 - [ ] No OCR for scanned PDFs
-- [ ] No user memory extraction from conversations (schema exists, not implemented)
 - [ ] No title generation for conversations (placeholder exists)
 - [ ] No conversation search/filter
 - [ ] No export functionality (conversations, documents)
+- [ ] No automatic memory extraction triggers (currently manual)
 
 ### **UI/UX Gaps**
 
@@ -92,7 +97,8 @@
 - [ ] No file type validation on backend
 - [ ] Orphaned temp files if processing fails mid-way
 - [ ] No metrics/observability (Prometheus, Sentry)
-- [ ] No automated tests (unit, integration, E2E)
+- [x] **Automated tests** for memory system (52 passing tests)
+- [ ] Limited test coverage for other components (RAG, auth, scratchpad)
 - [ ] No CI/CD pipeline
 - [ ] Hardcoded polling intervals (could be configurable)
 
